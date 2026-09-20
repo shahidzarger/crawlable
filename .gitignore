@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+build/
+# Every dotenv variant is ignored — .env.production holds live Lemon Squeezy
+# and Neon credentials and must never be committed. The example stays tracked.
+.env*
+!.env.example
+*.log
+.DS_Store
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+scripts/social/.published.json

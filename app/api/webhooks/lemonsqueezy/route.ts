@@ -1,0 +1,213 @@
+import { lemonSqueezyConfig } from '@/lib/env';
+import { store } from '@/lib/db';
+import {
+  hashLicenseKey,
+  parseWebhookEvent,
+  planIdForVariant,
+  verifyWebhookSignature,
+} from '@/lib/lemonsqueezy';
+import { recordLicense } from '@/lib/licensing';
+import { planById } from '@/lib/plans';
+import { purchaseEmail } from '@/lib/email/templates';
+import { sendEmail } from '@/lib/email/send';
+import type { PlanId } from '@/lib/db/types';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+/**
+ * Lemon Squeezy webhook receiver.
+ *
+ * Order of operations matters here:
+ *   1. Read the raw body as text — the signature is over exact bytes, so it
+ *      must not be parsed first.
+ *   2. Verify the HMAC in constant time. An unverified body is discarded.
+ *   3. Only then act on it.
+ *
+ * Handlers are idempotent because Lemon Squeezy retries on any non-2xx, and a
+ * redelivered order must not reset a customer's used credits or re-send a key.
+ *
+ * Configure in Lemon Squeezy → Settings → Webhooks:
+ *   URL:    https://your-domain.com/api/webhooks/lemonsqueezy
+ *   Events: order_created, subscription_created, subscription_updated,
+ *           subscription_cancelled, subscription_expired, license_key_created
+ */
+
+interface OrderAttributes {
+  user_email?: string;
+  status?: string;
+  first_order_item?: { variant_id?: number | string; product_name?: string };
+}
+
+interface LicenseKeyAttributes {
+  key?: string;
+  status?: string;
+  order_id?: number | string;
+  user_email?: string;
+  product_id?: number | string;
+}
+
+interface SubscriptionAttributes {
+  user_email?: string;
+  status?: string;
+  order_id?: number | string;
+  variant_id?: number | string;
+}
+
+function resolvePlan(
+  variantId: string | number | undefined,
+  productName: string | undefined,
+  customPlan: string | undefined,
+): PlanId | null {
+  if (customPlan && planById(customPlan)) return customPlan as PlanId;
+
+  if (variantId !== undefined) {
+    try {
+      const mapped = planIdForVariant(String(variantId));
+      if (mapped) return mapped;
+    } catch {
+      // Variant IDs not configured; fall through to name matching.
+    }
+  }
+
+  if (productName) {
+    const lower = productName.toLowerCase();
+    if (lower.includes('agency pack') || lower.includes('pack')) return 'pack';
+    if (lower.includes('agency')) return 'agency';
+    if (lower.includes('single')) return 'single';
+  }
+
+  return null;
+}
+
+export async function POST(request: Request): Promise<Response> {
+  let secret: string;
+  try {
+    secret = lemonSqueezyConfig().webhookSecret;
+  } catch {
+    console.error('[webhook] Lemon Squeezy is not configured; rejecting delivery.');
+    return new Response('Webhook not configured', { status: 503 });
+  }
+
+  const rawBody = await request.text();
+  const signature = request.headers.get('x-signature');
+
+  if (!verifyWebhookSignature(rawBody, signature, secret)) {
+    // 401 so Lemon Squeezy surfaces it, rather than retrying forever.
+    return new Response('Invalid signature', { status: 401 });
+  }
+
+  const event = parseWebhookEvent(rawBody);
+  if (!event) return new Response('Malformed payload', { status: 400 });
+
+  const eventName = event.meta.event_name;
+  const custom = event.meta.custom_data ?? {};
+
+  try {
+    switch (eventName) {
+      case 'license_key_created': {
+        const attributes = event.data.attributes as LicenseKeyAttributes;
+        const key = attributes.key;
+        if (!key) {
+          console.error('[webhook] license_key_created without a key');
+          return new Response('OK', { status: 200 });
+        }
+
+        const db = await store();
+        const existing = await db.getLicense(hashLicenseKey(key));
+        if (existing) {
+          // Redelivery. Nothing to do, and crucially no second email.
+          return new Response('OK', { status: 200 });
+        }
+
+        const plan = resolvePlan(undefined, undefined, custom.plan);
+        if (!plan) {
+          console.error('[webhook] could not resolve plan for license_key_created', {
+            orderId: attributes.order_id,
+          });
+          return new Response('OK', { status: 200 });
+        }
+
+        const email = attributes.user_email ?? '';
+        await recordLicense({
+          licenseKey: key,
+          plan,
+          email,
+          orderId: String(attributes.order_id ?? event.data.id),
+          status: attributes.status === 'inactive' ? 'active' : 'active',
+        });
+
+        const planRecord = planById(plan);
+        if (email && planRecord) {
+          const sendResult = await sendEmail(email, purchaseEmail({ licenseKey: key, plan: planRecord }));
+          if (!sendResult.sent && !sendResult.skipped) {
+            console.error('[webhook] purchase email failed', sendResult.error);
+          }
+        }
+
+        return new Response('OK', { status: 200 });
+      }
+
+      case 'order_created': {
+        // Orders arrive before or after license_key_created depending on the
+        // store's configuration. This branch records the order so support can
+        // look it up; the key itself is handled by license_key_created.
+        const attributes = event.data.attributes as OrderAttributes;
+        const plan = resolvePlan(
+          attributes.first_order_item?.variant_id,
+          attributes.first_order_item?.product_name,
+          custom.plan,
+        );
+
+        console.info('[webhook] order_created', {
+          orderId: event.data.id,
+          plan,
+          status: attributes.status,
+        });
+
+        return new Response('OK', { status: 200 });
+      }
+
+      case 'subscription_created':
+      case 'subscription_updated': {
+        const attributes = event.data.attributes as SubscriptionAttributes;
+        const db = await store();
+        const existing = await db.getLicenseByOrder(String(attributes.order_id ?? ''));
+
+        if (existing) {
+          const active = attributes.status === 'active' || attributes.status === 'on_trial';
+          await db.updateLicenseStatus(existing.keyHash, active ? 'active' : 'cancelled');
+        }
+
+        return new Response('OK', { status: 200 });
+      }
+
+      case 'subscription_cancelled':
+      case 'subscription_expired': {
+        const attributes = event.data.attributes as SubscriptionAttributes;
+        const db = await store();
+        const existing = await db.getLicenseByOrder(String(attributes.order_id ?? ''));
+
+        if (existing) {
+          await db.updateLicenseStatus(
+            existing.keyHash,
+            eventName === 'subscription_expired' ? 'expired' : 'cancelled',
+          );
+        }
+
+        return new Response('OK', { status: 200 });
+      }
+
+      default: {
+        // Unhandled events are acknowledged so Lemon Squeezy stops retrying.
+        console.info('[webhook] unhandled event', eventName);
+        return new Response('OK', { status: 200 });
+      }
+    }
+  } catch (error) {
+    console.error('[webhook] handler failed', { eventName, error });
+    // 500 asks Lemon Squeezy to retry, which is what we want for a transient
+    // database failure.
+    return new Response('Handler error', { status: 500 });
+  }
+}

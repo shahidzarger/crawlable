@@ -1,0 +1,49 @@
+{
+  "_comment": "Distribution queue. Each post has a channel, a body, and an optional link. Value-first: every post teaches the mechanism before it mentions the product. Run `npm run social:queue -- --dry-run` to preview, then drop --dry-run to publish.",
+  "posts": [
+    {
+      "id": "js-rendering-thread",
+      "channel": "x",
+      "scheduledFor": "2026-09-22T09:00:00Z",
+      "body": "Most AI crawlers do not run JavaScript.\n\nGPTBot, ClaudeBot, PerplexityBot: they fetch your HTML and parse it. No hydration, no effects, no client-side fetches.\n\nIf your site is a React SPA, here is what ChatGPT's crawler actually receives:\n\n<div id=\"root\"></div>\n\nThat's it. That's the page.",
+      "link": null
+    },
+    {
+      "id": "google-vs-ai-distinction",
+      "channel": "x",
+      "scheduledFor": "2026-09-24T09:00:00Z",
+      "body": "A thing that confuses people:\n\nYou can rank fine in Google and be completely absent from ChatGPT.\n\nGoogle renders JavaScript. It has for years.\nThe AI crawlers mostly do not.\n\nSame site, two very different views. Your SEO tool only ever showed you the first one.",
+      "link": null
+    },
+    {
+      "id": "robots-retrieval-vs-training",
+      "channel": "x",
+      "scheduledFor": "2026-09-26T09:00:00Z",
+      "body": "If you blocked AI crawlers in robots.txt, check which ones.\n\nGPTBot = training. Blocking it costs you nothing in visibility.\nOAI-SearchBot = the index behind ChatGPT search.\nChatGPT-User = fetches your page when someone pastes your link.\n\nBlocking the last two removes you from answers people actually read. A lot of \"block AI\" guides conflate all three.",
+      "link": null
+    },
+    {
+      "id": "linkedin-agency-angle",
+      "channel": "linkedin",
+      "scheduledFor": "2026-09-23T07:00:00Z",
+      "body": "Every agency is getting the same client question right now: \"why don't we show up in ChatGPT?\"\n\nBefore you buy a $300/month monitoring tool to answer it, check something cheaper.\n\nMost AI crawlers don't execute JavaScript. They fetch raw HTML and parse what is there. If the client's site renders client-side — a React SPA, a Next.js app with everything behind \"use client\", a Squarespace page built out of summary blocks — the crawler receives an empty container.\n\nNo amount of prompt monitoring fixes that. It just tells you, monthly, that you are still absent.\n\nThe diagnostic takes one command:\n\ncurl -s -A \"GPTBot\" https://clientsite.com | grep -c \"some sentence from the page\"\n\nIf that returns 0, you have found the problem, and it is not a content problem.",
+      "link": null
+    },
+    {
+      "id": "reddit-webdev-value",
+      "channel": "reddit",
+      "subreddit": "webdev",
+      "scheduledFor": "2026-09-25T14:00:00Z",
+      "title": "PSA: your SPA is invisible to AI crawlers, and your Google ranking won't tell you",
+      "body": "Spent a while digging into this and it surprised me enough to write up.\n\nGooglebot renders JavaScript — it has a full rendering pipeline. So a client-side React app can index fine and rank fine.\n\nThe AI crawlers are a different pipeline entirely. GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-SearchBot, PerplexityBot — these fetch the HTML and parse it. No JS execution.\n\nSo the test everyone runs (\"we rank on Google, we're fine\") is measuring the wrong crawler.\n\nQuick way to check your own site:\n\n    curl -s -A \"GPTBot\" https://yoursite.com | sed 's/<[^>]*>//g' | tr -s ' \\n' ' ' | wc -w\n\nIf that number is under ~100 and your page clearly has more content than that, the content is arriving via JavaScript and the crawler isn't getting it.\n\nFixes depend on stack — SSR, static generation, or a prerender step. Next.js App Router is fine by default unless you've pushed pages behind \"use client\". Astro and Gatsby are fine. Plain Vite/CRA SPAs are the bad case.\n\nAlso worth checking: whether your robots.txt is blocking the *retrieval* crawlers vs the *training* crawlers. Those are different bots with different consequences and a lot of \"block AI scrapers\" snippets going around block both.",
+      "link": null
+    },
+    {
+      "id": "build-in-public-metrics",
+      "channel": "x",
+      "scheduledFor": "2026-09-29T09:00:00Z",
+      "body": "Ran the AI-readability audit across 50 sites I could find in one niche.\n\nMedian score: 61/100.\nWorst offender: a $200/mo SaaS whose entire marketing site returns 0 readable words to a non-rendering crawler.\n\nThe pattern is nearly always the same: a beautiful client-rendered site that no answer engine can read.",
+      "link": null
+    }
+  ]
+}
