@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PLANS, type Plan } from '@/lib/plans';
 import { SEVERITY } from '@/components/report/severity';
 
@@ -8,6 +8,37 @@ import { SEVERITY } from '@/components/report/severity';
 export function Pricing() {
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  /*
+   * Re-enable the buttons when the browser restores this page from the
+   * back/forward cache.
+   *
+   * Clicking a plan sets `pending` and then navigates to Lemon Squeezy. If the
+   * customer presses Back, the browser may restore this page from bfcache
+   * rather than re-running it — the DOM and all React state come back exactly
+   * as they were left, so `pending` is still set and every button is still
+   * disabled and reading "Opening checkout…". The page looks broken, and the
+   * customer cannot buy. On mobile Safari, where Back is a swipe, this is the
+   * common path rather than the edge case.
+   *
+   * `pageshow` fires on every page display, including a bfcache restore, and
+   * `persisted` is true only for that restore — a normal load leaves it false,
+   * and in that case React state started empty anyway, so there is nothing to
+   * reset.
+   *
+   * Only `pending` is cleared. `error` is left alone: it is null whenever a
+   * navigation to checkout happened, so clearing it would be a no-op here, and
+   * discarding a genuine error message the customer has not read yet would be
+   * worse than leaving it.
+   */
+  useEffect(() => {
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) setPending(null);
+    }
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
 
   async function buy(plan: Plan) {
     setPending(plan.id);

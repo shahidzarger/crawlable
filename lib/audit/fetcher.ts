@@ -11,7 +11,7 @@ import { isIP } from 'node:net';
  */
 
 export const USER_AGENT =
-  'CrawlableBot/1.0 (+https://crawlable.dev/bot; AI-readability auditor)';
+  'CrawlableBot/1.0 (+https://usecrawlable.com/bot; AI-readability auditor)';
 
 /**
  * Hard ceiling on a single response body. Anything larger is truncated rather

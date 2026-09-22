@@ -31,7 +31,7 @@ const schema = z.object({
 
   /** Resend API key for transactional email. Email is skipped when absent. */
   RESEND_API_KEY: z.string().min(1).optional(),
-  EMAIL_FROM: z.string().default('Crawlable <hello@crawlable.dev>'),
+  EMAIL_FROM: z.string().default('Crawlable <hello@usecrawlable.com>'),
 
   /** Secret guarding cron and internal endpoints. */
   CRON_SECRET: z.string().min(16).optional(),

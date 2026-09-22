@@ -85,7 +85,7 @@ export async function provisionLicenseFromValidation(
   return recordLicense({
     licenseKey,
     plan,
-    email: validation.email ?? 'unknown@crawlable.dev',
+    email: validation.email ?? 'unknown@usecrawlable.com',
     orderId: validation.orderId ?? `unmapped-${Date.now()}`,
     status: validation.status === 'active' ? 'active' : 'expired',
   });
