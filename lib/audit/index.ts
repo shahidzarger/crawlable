@@ -17,6 +17,23 @@ export { normaliseUrl, toOrigin, FetchError } from './fetcher';
 /** Pages fetched in parallel. Deliberately polite — this hits other people's servers. */
 const CRAWL_CONCURRENCY = 4;
 
+/**
+ * Wall-clock budget for everything that touches the network.
+ *
+ * The route's `maxDuration` is 60s. Without a budget the worst case is roughly
+ * four times that — ~108s of serial sitemap probing plus ~120s of crawling at
+ * four-wide, each request able to burn the full 12s timeout. Vercel then kills
+ * the function: the customer gets a bare 504 with no JSON body, the error
+ * handling never runs, and — because the credit is debited before the crawl
+ * starts — the refund in the catch block never runs either. A silent debit for
+ * nothing.
+ *
+ * 45s leaves roughly 15s for scoring, fix-file generation, the database write
+ * and the completion email, plus one in-flight fetch finishing its timeout.
+ * Reaching the budget produces a smaller, honest report instead of no report.
+ */
+export const AUDIT_BUDGET_MS = 45_000;
+
 export const PAGE_LIMITS = {
   scan: 1,
   audit: 40,
@@ -27,6 +44,8 @@ export interface RunAuditOptions {
   mode: 'scan' | 'audit';
   /** Override the page cap, bounded by the mode's own limit. */
   maxPages?: number;
+  /** Override the wall-clock budget. Tests use this; callers should not. */
+  budgetMs?: number;
 }
 
 /**
@@ -54,6 +73,8 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
    */
   await assertPublicHost(entry.hostname);
 
+  const deadline = started + (options.budgetMs ?? AUDIT_BUDGET_MS);
+
   const limit = Math.max(
     1,
     Math.min(options.maxPages ?? PAGE_LIMITS[mode], PAGE_LIMITS[mode]),
@@ -69,7 +90,7 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
   if (mode === 'scan') {
     targets = [entry.toString()];
   } else {
-    const discovery = await discoverUrls(origin, limit, robots.sitemaps);
+    const discovery = await discoverUrls(origin, limit, robots.sitemaps, deadline);
     // Always audit the exact URL the customer entered, even if the sitemap
     // sample did not include it.
     const entryUrl = entry.toString();
@@ -78,9 +99,20 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
       : [entryUrl, ...discovery.urls].slice(0, limit);
   }
 
-  const pages = await mapWithConcurrency(targets, CRAWL_CONCURRENCY, (url) =>
-    analysePage(url),
+  /*
+   * The entry URL is always index 0 of `targets`, and workers claim indices in
+   * order, so the page the customer actually typed is fetched first and is the
+   * last thing a budget overrun would drop.
+   */
+  const settled = await mapWithConcurrency(
+    targets,
+    CRAWL_CONCURRENCY,
+    (url) => analysePage(url),
+    { deadline },
   );
+
+  const pages = settled.filter((page): page is NonNullable<typeof page> => page !== undefined);
+  const pagesSkipped = targets.length - pages.length;
 
   const checks = runChecks(pages, robots, llmsTxt);
   const score = overallScore(checks);
@@ -97,6 +129,8 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
     invisiblePercent: invisibleShare(pages),
     pagesAudited: readable.length,
     pagesFailed: pages.length - readable.length,
+    pagesSkipped,
+    isPartialScan: pagesSkipped > 0,
     checks,
     pages,
     robots,

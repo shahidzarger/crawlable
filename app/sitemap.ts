@@ -13,6 +13,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: path === '' ? 1 : 0.8,
   }));
 
+  // Legal pages are indexed deliberately: a buyer checking whether a small
+  // vendor is legitimate looks for these, and an absent refund policy reads as
+  // evasive. Low priority, rarely changing.
+  const legalRoutes = ['/terms', '/privacy', '/refunds'].map((path) => ({
+    url: `${SITE_URL}${path}`,
+    lastModified: now,
+    changeFrequency: 'yearly' as const,
+    priority: 0.3,
+  }));
+
   const platformRoutes = PLATFORMS.map((platform) => ({
     url: `${SITE_URL}/platforms/${platform.slug}`,
     lastModified: now,
@@ -27,5 +37,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  return [...staticRoutes, ...platformRoutes, ...crawlerRoutes];
+  return [...staticRoutes, ...legalRoutes, ...platformRoutes, ...crawlerRoutes];
 }

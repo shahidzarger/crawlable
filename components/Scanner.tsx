@@ -174,6 +174,7 @@ function ScanResult({ result }: { result: AuditResult }) {
         grade={result.grade}
         invisiblePercent={result.invisiblePercent}
         pagesAudited={result.pagesAudited}
+        pagesSkipped={result.pagesSkipped}
         siteUrl={result.siteUrl}
       />
 

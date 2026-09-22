@@ -10,12 +10,15 @@ export function ScoreHero({
   grade,
   invisiblePercent,
   pagesAudited,
+  pagesSkipped = 0,
   siteUrl,
 }: {
   score: number;
   grade: string;
   invisiblePercent: number;
   pagesAudited: number;
+  /** Targets dropped when the audit hit its time budget. */
+  pagesSkipped?: number;
   siteUrl: string;
 }) {
   const host = siteUrl.replace(/^https?:\/\//, '');
@@ -23,6 +26,34 @@ export function ScoreHero({
 
   return (
     <div className="surface-card p-6 sm:p-8">
+      {/*
+        Shown above the number, never below it. A score derived from a sample
+        that looks identical to a complete one is the single most damaging
+        thing this report could do, so the caveat has to arrive before the
+        figure it qualifies.
+      */}
+      {pagesSkipped > 0 && (
+        <div
+          role="status"
+          className="mb-5 rounded-md border px-4 py-3 text-sm"
+          style={{ borderColor: 'var(--data-warn)' }}
+        >
+          <p className="font-medium">
+            <span aria-hidden style={{ color: 'var(--data-warn)' }}>
+              ◆
+            </span>{' '}
+            Partial scan — {pagesAudited}{' '}
+            {pagesAudited === 1 ? 'page' : 'pages'} analysed before the time limit
+          </p>
+          <p className="mt-1 ink-secondary">
+            {pagesSkipped} further {pagesSkipped === 1 ? 'page was' : 'pages were'} found
+            but not fetched, because {host} responded slowly. The score below reflects the
+            pages we did read. Re-run the audit for fuller coverage — it will not cost
+            another credit if you contact support.
+          </p>
+        </div>
+      )}
+
       <p className="text-sm ink-muted">AI readability of</p>
       <p className="mt-0.5 break-all font-mono text-sm">{host}</p>
 

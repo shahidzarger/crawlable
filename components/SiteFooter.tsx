@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AI_CRAWLERS } from '@/lib/audit/crawlers';
 import { PLATFORMS } from '@/content/platforms';
+import { SUPPORT_EMAIL } from '@/components/legal/LegalLayout';
 
 export function SiteFooter() {
   const year = new Date().getFullYear();
@@ -8,7 +9,7 @@ export function SiteFooter() {
   return (
     <footer className="mt-24 border-t">
       <div className="mx-auto max-w-6xl px-4 py-12">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <div className="flex items-center gap-2 font-semibold tracking-tight">
               <span
@@ -96,11 +97,53 @@ export function SiteFooter() {
               </li>
             </ul>
           </div>
+
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider ink-muted">
+              Company
+            </h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li>
+                <Link href="/terms" className="ink-secondary hover:text-[var(--ink-primary)]">
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link href="/privacy" className="ink-secondary hover:text-[var(--ink-primary)]">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/refunds" className="ink-secondary hover:text-[var(--ink-primary)]">
+                  Refund Policy
+                </Link>
+              </li>
+              <li>
+                <a
+                  href={`mailto:${SUPPORT_EMAIL}`}
+                  className="ink-secondary hover:text-[var(--ink-primary)]"
+                >
+                  Contact support
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        <div className="mt-10 flex flex-col gap-3 border-t pt-6 text-xs ink-muted sm:flex-row sm:items-center sm:justify-between">
-          <p>© {year} Crawlable. Payments handled by Lemon Squeezy as merchant of record.</p>
-          <p>Crawls are rate-limited and respect your robots.txt.</p>
+        <div className="mt-10 border-t pt-6">
+          <p className="text-xs ink-secondary">
+            <span
+              aria-hidden
+              className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle"
+              style={{ background: 'var(--data-good)' }}
+            />
+            Payments securely processed by Lemon Squeezy, our Merchant of Record.
+          </p>
+
+          <div className="mt-3 flex flex-col gap-3 text-xs ink-muted sm:flex-row sm:items-center sm:justify-between">
+            <p>© {year} Crawlable. All rights reserved.</p>
+            <p>Crawls are rate-limited and respect your robots.txt.</p>
+          </div>
         </div>
       </div>
     </footer>

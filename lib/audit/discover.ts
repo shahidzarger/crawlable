@@ -128,7 +128,15 @@ export async function discoverUrls(
   origin: string,
   limit: number,
   sitemapHints: string[] = [],
+  /**
+   * Epoch milliseconds past which discovery stops probing. Sitemap candidates
+   * are tried serially, so on a host that black-holes requests this loop alone
+   * can outlast the whole function budget. Stopping early costs breadth; not
+   * stopping costs the entire audit.
+   */
+  deadline?: number,
 ): Promise<DiscoveryResult> {
+  const outOfTime = (): boolean => deadline !== undefined && Date.now() >= deadline;
   const root = normaliseUrl(origin).origin;
   const ordered: string[] = [root];
   const seen = new Set([normaliseForDedupe(new URL(root))]);
@@ -150,6 +158,7 @@ export async function discoverUrls(
   let usedSitemap: string | null = null;
   for (const candidate of candidates) {
     if (ordered.length >= limit) break;
+    if (outOfTime()) break;
     const urls = await parseSitemap(candidate, root, limit * 3);
     if (urls.length > 0) {
       usedSitemap = candidate;
@@ -170,8 +179,10 @@ export async function discoverUrls(
     return { urls: ordered.slice(0, limit), source: 'sitemap', sitemapUrl: usedSitemap };
   }
 
-  const homepageLinks = await discoverFromHomepage(root, limit * 2);
-  push(homepageLinks);
+  if (!outOfTime()) {
+    const homepageLinks = await discoverFromHomepage(root, limit * 2);
+    push(homepageLinks);
+  }
 
   return {
     urls: ordered.slice(0, limit),
@@ -180,17 +191,40 @@ export async function discoverUrls(
   };
 }
 
-/** Run an async mapper over a list with a fixed concurrency ceiling. */
+export interface ConcurrencyOptions {
+  /**
+   * Epoch milliseconds past which no NEW work is started. Requests already in
+   * flight are allowed to finish — aborting them would waste the time already
+   * spent and produce no data. The deadline therefore bounds when the last
+   * fetch *starts*, not when the map resolves; leave headroom for one
+   * in-flight request to run its full timeout.
+   */
+  deadline?: number;
+}
+
+/**
+ * Run an async mapper over a list with a fixed concurrency ceiling.
+ *
+ * Entries whose work never started are left `undefined`, which is what makes a
+ * partial result distinguishable from a failed one: a failure is a resolved
+ * value describing the failure, a skip is a hole. Callers must filter.
+ */
 export async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
   mapper: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
+  options: ConcurrencyOptions = {},
+): Promise<Array<R | undefined>> {
+  const { deadline } = options;
+  const results: Array<R | undefined> = new Array(items.length);
   let cursor = 0;
 
   const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
     while (true) {
+      // Checked before claiming an index, so a worker that wakes up past the
+      // deadline consumes nothing and leaves the target for the skip count.
+      if (deadline !== undefined && Date.now() >= deadline) return;
+
       const index = cursor;
       cursor += 1;
       if (index >= items.length) return;

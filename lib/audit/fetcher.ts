@@ -13,9 +13,25 @@ import { isIP } from 'node:net';
 export const USER_AGENT =
   'CrawlableBot/1.0 (+https://crawlable.dev/bot; AI-readability auditor)';
 
-/** Hard ceiling on a single response body. Anything larger is truncated. */
+/**
+ * Hard ceiling on a single response body. Anything larger is truncated rather
+ * than rejected — a 50MB page is still worth scoring on its first 3MB, and
+ * truncation is reported so the score can account for it.
+ *
+ * 3MB is well above any real HTML document (the 99th percentile is under
+ * 500KB) and low enough that an audit crawling 40 pages cannot exhaust a
+ * 1GB serverless function even if every response is hostile.
+ */
 const MAX_BYTES = 3_000_000;
-/** Per-request timeout. */
+/**
+ * Per-request timeout.
+ *
+ * Deliberately generous. The customers most likely to need this product are the
+ * ones on sluggish shared WordPress and Shopify hosting, and a false "your site
+ * timed out" on a first trial is worse than a slow audit. The function-level
+ * budget is protected by the wall-clock deadline in `runAudit` instead, which
+ * degrades gracefully rather than failing the whole crawl.
+ */
 const DEFAULT_TIMEOUT_MS = 12_000;
 /** Redirects followed before giving up. */
 const MAX_REDIRECTS = 5;
@@ -29,6 +45,16 @@ export interface FetchResult {
   bytes: number;
   truncated: boolean;
   fetchMs: number;
+}
+
+/**
+ * `URL.hostname` keeps the brackets around an IPv6 literal ("[::1]"), and
+ * `net.isIP` rejects that form. Every address check must strip them first, or
+ * a literal silently takes the hostname path and gets a DNS lookup instead of
+ * a range check.
+ */
+function stripBrackets(host: string): string {
+  return host.replace(/^\[|\]$/g, '');
 }
 
 export class FetchError extends Error {
@@ -71,7 +97,15 @@ export function normaliseUrl(input: string): URL {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new FetchError('Only http and https URLs can be audited.', 'invalid-url');
   }
-  if (!url.hostname || !url.hostname.includes('.')) {
+  /*
+   * A public hostname needs a dot — but an IP literal legitimately may not
+   * ("[::1]", and IPv6 generally). Letting literals through here is deliberate:
+   * they are then judged by `assertPublicHost` on the address itself, which is
+   * the check that should decide. Rejecting them on punctuation would refuse
+   * them for a reason unrelated to why they are dangerous, and would quietly
+   * stop working if this heuristic were ever relaxed.
+   */
+  if (!url.hostname || (!isIP(stripBrackets(url.hostname)) && !url.hostname.includes('.'))) {
     throw new FetchError(
       'That hostname does not look like a public domain.',
       'invalid-url',
@@ -102,21 +136,56 @@ function isPrivateIpv4(ip: string): boolean {
   return false;
 }
 
+/**
+ * Extract the embedded IPv4 address from an IPv4-mapped IPv6 address.
+ *
+ * Both spellings must be handled, and the second one is the one that bites:
+ *
+ *   ::ffff:127.0.0.1   what a human types
+ *   ::ffff:7f00:1      what `new URL()` stores after normalising it
+ *
+ * Matching only the dotted form leaves `http://[::ffff:169.254.169.254]/` —
+ * the cloud metadata endpoint — classified as a public address, because by the
+ * time it reaches this function the dots are gone.
+ */
+function mappedIpv4(lower: string): string | null {
+  const dotted = lower.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (dotted?.[1]) return dotted[1];
+
+  const hex = lower.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (hex?.[1] !== undefined && hex[2] !== undefined) {
+    const high = Number.parseInt(hex[1], 16);
+    const low = Number.parseInt(hex[2], 16);
+    return [high >> 8, high & 0xff, low >> 8, low & 0xff].join('.');
+  }
+
+  return null;
+}
+
 function isPrivateIpv6(ip: string): boolean {
   const lower = ip.toLowerCase().replace(/^\[|\]$/g, '');
   if (lower === '::1' || lower === '::') return true;
   if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // unique local
   if (lower.startsWith('fe80')) return true; // link-local
-  // IPv4-mapped addresses such as ::ffff:127.0.0.1
-  const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (mapped?.[1]) return isPrivateIpv4(mapped[1]);
+
+  const mapped = mappedIpv4(lower);
+  if (mapped) return isPrivateIpv4(mapped);
+
+  /*
+   * IPv4-compatible addresses (::a.b.c.d / ::7f00:1) are deprecated and have no
+   * legitimate public use, but still route on some stacks. Anything else in ::/96
+   * is refused rather than reasoned about.
+   */
+  if (lower.startsWith('::')) return true;
+
   return false;
 }
 
 export function isBlockedAddress(ip: string): boolean {
-  const version = isIP(ip);
-  if (version === 4) return isPrivateIpv4(ip);
-  if (version === 6) return isPrivateIpv6(ip);
+  const bare = stripBrackets(ip);
+  const version = isIP(bare);
+  if (version === 4) return isPrivateIpv4(bare);
+  if (version === 6) return isPrivateIpv6(bare);
   return true;
 }
 
@@ -125,7 +194,7 @@ export function isBlockedAddress(ip: string): boolean {
  * space. Called before every request, including after each redirect hop.
  */
 export async function assertPublicHost(hostname: string): Promise<void> {
-  const host = hostname.toLowerCase();
+  const host = stripBrackets(hostname.toLowerCase());
 
   if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal')) {
     throw new FetchError('That host is not publicly reachable.', 'blocked-host');

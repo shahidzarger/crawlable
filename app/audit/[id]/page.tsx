@@ -69,6 +69,7 @@ export default async function AuditReportPage({
           grade={result.grade}
           invisiblePercent={result.invisiblePercent}
           pagesAudited={result.pagesAudited}
+          pagesSkipped={result.pagesSkipped}
           siteUrl={result.siteUrl}
         />
 

@@ -152,6 +152,18 @@ export interface AuditResult {
   invisiblePercent: number;
   pagesAudited: number;
   pagesFailed: number;
+  /**
+   * Targets that were discovered but never fetched, because the audit reached
+   * its wall-clock budget first. Always 0 on a healthy site.
+   */
+  pagesSkipped: number;
+  /**
+   * True when `pagesSkipped > 0`. The score is then computed from a sample
+   * rather than the full target list, and the UI must say so — a score
+   * presented as complete when it is not is the one failure mode that would
+   * make this product untrustworthy.
+   */
+  isPartialScan: boolean;
   checks: CheckResult[];
   pages: PageAnalysis[];
   robots: RobotsAnalysis;

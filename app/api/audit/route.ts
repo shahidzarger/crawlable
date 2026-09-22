@@ -3,6 +3,7 @@ import { authenticateLicense, fail, ok, readJson } from '@/lib/api';
 import { store } from '@/lib/db';
 import { FetchError, PAGE_LIMITS, runAudit } from '@/lib/audit';
 import { remainingCredits, spendCredit } from '@/lib/licensing';
+import { validateUrl } from '@/lib/scanner/validate-url';
 import { auditReadyEmail } from '@/lib/email/templates';
 import { sendEmail } from '@/lib/email/send';
 
@@ -25,6 +26,34 @@ const schema = z.object({
   notify: z.boolean().optional(),
 });
 
+/**
+ * Presentable copy for each failure the crawl can surface.
+ *
+ * FetchError messages are written for a developer reading a log. These are
+ * written for a customer looking at a dialog, and every one of them says what
+ * to do next. The `code` travels alongside so the frontend can branch without
+ * matching on prose.
+ */
+const FRIENDLY_ERROR: Record<string, string> = {
+  timeout:
+    'That site took too long to respond. It may be slow or temporarily down — try again in a few minutes.',
+  'dns-failure':
+    'We could not find that domain. Check the spelling, or confirm the site is live.',
+  network:
+    'We could not reach that site. It may be down, or blocking automated requests.',
+  'blocked-host':
+    'That address is not publicly reachable, so there is nothing an AI crawler could read there.',
+  'invalid-url': 'That does not look like a valid website address.',
+  'too-many-redirects':
+    'That site redirected too many times. Check for a redirect loop in your hosting configuration.',
+  'unsupported-content':
+    'That URL does not return a web page. Point us at an HTML page rather than a file download.',
+};
+
+function friendly(code: string, fallback: string): string {
+  return FRIENDLY_ERROR[code] ?? fallback;
+}
+
 export async function POST(request: Request): Promise<Response> {
   const authResult = await authenticateLicense(request);
   if ('response' in authResult) return authResult.response;
@@ -36,6 +65,21 @@ export async function POST(request: Request): Promise<Response> {
   const parsed = schema.safeParse(parsedBody.body);
   if (!parsed.success) {
     return fail('invalid-input', 'Provide a "url" to audit.', 400);
+  }
+
+  // Validate before spending anything. This runs ahead of the credit debit so
+  // that a malformed or private-range target never touches the licence row —
+  // previously such a request debited a credit and refunded it in the catch
+  // block, which is two writes and a brief window where the customer's balance
+  // was wrong. safeFetch re-checks every hop regardless; this is the early,
+  // cheap, friendly rejection.
+  const validation = await validateUrl(parsed.data.url);
+  if (!validation.ok) {
+    return fail(
+      validation.code,
+      friendly(validation.code, validation.message),
+      validation.status,
+    );
   }
 
   const credit = await spendCredit(keyHash);
@@ -86,8 +130,13 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (error instanceof FetchError) {
-      const status = error.code === 'blocked-host' || error.code === 'invalid-url' ? 400 : 502;
-      return fail(error.code, `${error.message} Your credit was not used.`, status);
+      const status =
+        error.code === 'blocked-host' || error.code === 'invalid-url' ? 400 : 502;
+      return fail(
+        error.code,
+        `${friendly(error.code, error.message)} Your credit was not used.`,
+        status,
+      );
     }
 
     console.error('[audit] unexpected failure', error);

@@ -87,6 +87,8 @@ function buildResult(robotsRaw: string): AuditResult {
     invisiblePercent: invisibleShare(pages),
     pagesAudited: pages.length,
     pagesFailed: 0,
+    pagesSkipped: 0,
+    isPartialScan: false,
     checks,
     pages,
     robots,
