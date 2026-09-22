@@ -3,6 +3,8 @@ import type { LicenseRecord, PlanId } from '@/lib/db/types';
 import { PLANS, planById } from '@/lib/plans';
 import {
   hashLicenseKey,
+  isLicenseExpired,
+  isUsableLicenseStatus,
   licenseTail,
   planIdForVariant,
   type LicenseValidation,
@@ -82,12 +84,30 @@ export async function provisionLicenseFromValidation(
 
   if (!plan) return null;
 
+  /*
+   * Map Lemon Squeezy's status onto ours.
+   *
+   * This previously read `validation.status === 'active' ? 'active' : 'expired'`,
+   * which is the bug that made a freshly purchased key unusable. A key is
+   * `inactive` from the moment it is issued until an instance is activated
+   * against it — which for this product never happens, because we authenticate
+   * by key rather than activating instances. So every new key was written to
+   * our database as `expired`, and stayed that way: the webhook handler dedupes
+   * on an existing record and does not correct the status, so a retry could not
+   * recover it either.
+   *
+   * A key is dead only when Lemon Squeezy says `expired` or `disabled`, or when
+   * a non-null expiry has actually passed.
+   */
+  const dead =
+    !isUsableLicenseStatus(validation.status) || isLicenseExpired(validation.expiresAt);
+
   return recordLicense({
     licenseKey,
     plan,
     email: validation.email ?? 'unknown@usecrawlable.com',
     orderId: validation.orderId ?? `unmapped-${Date.now()}`,
-    status: validation.status === 'active' ? 'active' : 'expired',
+    status: dead ? 'expired' : 'active',
   });
 }
 

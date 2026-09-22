@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { store } from '@/lib/db';
 import type { LicenseRecord } from '@/lib/db/types';
-import { hashLicenseKey, validateLicenseKey } from '@/lib/lemonsqueezy';
+import {
+  hashLicenseKey,
+  isLicenseExpired,
+  isUsableLicenseStatus,
+  validateLicenseKey,
+} from '@/lib/lemonsqueezy';
 
 /** Shared helpers for route handlers: responses, rate limiting and license auth. */
 
@@ -86,16 +91,43 @@ export async function authenticateLicense(
   const existing = await db.getLicense(keyHash);
 
   if (existing) {
-    if (existing.status !== 'active') {
-      return {
-        response: fail(
-          'license-inactive',
-          `This license is ${existing.status}. Renew or buy a new one to keep auditing.`,
-          403,
-        ),
-      };
+    if (existing.status === 'active') {
+      return { auth: { license: existing, keyHash } };
     }
-    return { auth: { license: existing, keyHash } };
+
+    /*
+     * Self-heal a record poisoned by the provisioning bug.
+     *
+     * Until this was fixed, any key provisioned before its webhook arrived was
+     * written as `expired`, because Lemon Squeezy reports a newly issued key as
+     * `inactive`. The webhook handler dedupes on an existing record and does not
+     * correct status, so those rows could never recover on their own and the
+     * customer stayed locked out of credits they had paid for.
+     *
+     * Re-checking with Lemon Squeezy costs one API call on a request that was
+     * about to be refused anyway, and an unknown key already triggers the same
+     * call below, so this opens no new abuse surface.
+     */
+    if (existing.status === 'expired') {
+      const revalidated = await validateLicenseKey(key);
+      if (
+        revalidated.valid &&
+        isUsableLicenseStatus(revalidated.status) &&
+        !isLicenseExpired(revalidated.expiresAt)
+      ) {
+        await db.updateLicenseStatus(keyHash, 'active');
+        const healed = await db.getLicense(keyHash);
+        if (healed) return { auth: { license: healed, keyHash } };
+      }
+    }
+
+    return {
+      response: fail(
+        'license-inactive',
+        `This license is ${existing.status}. Renew or buy a new one to keep auditing.`,
+        403,
+      ),
+    };
   }
 
   // Not recorded locally — ask Lemon Squeezy directly.
@@ -118,6 +150,19 @@ export async function authenticateLicense(
       response: fail(
         'license-unmapped',
         'That key is valid but does not map to a known plan. Contact support.',
+        403,
+      ),
+    };
+  }
+
+  // A genuinely expired or disabled key is refused here with a 403 rather than
+  // being allowed through to fail later as "no credits", which would be both
+  // the wrong status code and a misleading reason.
+  if (provisioned.status !== 'active') {
+    return {
+      response: fail(
+        'license-inactive',
+        `This license is ${provisioned.status}. Renew or buy a new one to keep auditing.`,
         403,
       ),
     };

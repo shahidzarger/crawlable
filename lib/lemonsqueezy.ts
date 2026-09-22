@@ -148,11 +148,52 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
 export interface LicenseValidation {
   valid: boolean;
   status: string | null;
+  /** ISO timestamp, or null for a key that never expires. */
+  expiresAt: string | null;
   email: string | null;
   orderId: string | null;
   productName: string | null;
   variantId: string | null;
   error: string | null;
+}
+
+/**
+ * Lemon Squeezy license statuses that mean the key is finished.
+ *
+ * Everything else — including `inactive`, which is what a key looks like from
+ * the moment it is issued until an instance is activated against it — is a
+ * usable key. Treating `inactive` as dead rejects every customer who runs
+ * their first audit before activating anything, which is all of them.
+ */
+const DEAD_STATUSES = new Set(['expired', 'disabled']);
+
+export function isUsableLicenseStatus(status: string | null | undefined): boolean {
+  if (!status) return true; // No status reported; `valid` already gated this.
+  return !DEAD_STATUSES.has(status.toLowerCase());
+}
+
+/**
+ * Whether a key's expiry has passed.
+ *
+ * `expires_at` is null for one-time purchases, which never expire. Comparing a
+ * null through `new Date(null)` yields the epoch, which is always in the past —
+ * the classic way this check locks out lifetime customers. An unparseable value
+ * is treated as non-expiring too: refusing a paying customer because a date
+ * failed to parse is the worse of the two errors.
+ */
+export function isLicenseExpired(
+  expiresAt: string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (expiresAt === null || expiresAt === undefined || expiresAt === '') return false;
+
+  const parsed = new Date(expiresAt);
+  if (Number.isNaN(parsed.getTime())) {
+    console.warn('[license] unparseable expires_at, treating as non-expiring:', expiresAt);
+    return false;
+  }
+
+  return parsed.getTime() <= now.getTime();
 }
 
 /**
@@ -173,7 +214,7 @@ export async function validateLicenseKey(key: string): Promise<LicenseValidation
     | {
         valid?: boolean;
         error?: string | null;
-        license_key?: { status?: string };
+        license_key?: { status?: string; expires_at?: string | null };
         meta?: {
           customer_email?: string;
           order_id?: number;
@@ -187,6 +228,7 @@ export async function validateLicenseKey(key: string): Promise<LicenseValidation
     return {
       valid: false,
       status: null,
+      expiresAt: null,
       email: null,
       orderId: null,
       productName: null,
@@ -198,6 +240,7 @@ export async function validateLicenseKey(key: string): Promise<LicenseValidation
   return {
     valid: payload.valid === true,
     status: payload.license_key?.status ?? null,
+    expiresAt: payload.license_key?.expires_at ?? null,
     email: payload.meta?.customer_email ?? null,
     orderId: payload.meta?.order_id != null ? String(payload.meta.order_id) : null,
     productName: payload.meta?.product_name ?? null,
