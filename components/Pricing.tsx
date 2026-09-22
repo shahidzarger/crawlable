@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { PLANS, type Plan } from '@/lib/plans';
 import { SEVERITY } from '@/components/report/severity';
+import { directCheckoutUrl } from '@/lib/checkout-links';
 
 /** Pricing table. Each button creates a Lemon Squeezy checkout and redirects. */
 export function Pricing() {
@@ -129,16 +130,37 @@ export function Pricing() {
               ))}
             </ul>
 
-            <button
-              type="button"
-              onClick={() => void buy(plan)}
-              disabled={pending !== null}
-              className={`mt-6 w-full px-5 py-3 text-sm ${
-                plan.highlight ? 'btn-primary' : 'btn-ghost'
-              }`}
-            >
-              {pending === plan.id ? 'Opening checkout…' : plan.cta}
-            </button>
+            {/*
+              A configured plan renders a real link: the browser starts
+              navigating on mousedown, with no fetch, no serverless cold start
+              and no third-party API call in the way. There is no pending state
+              to get stuck in either, which makes the bfcache problem moot for
+              this path.
+
+              An unconfigured plan keeps the original button and API round trip,
+              so a partial configuration is slow rather than broken.
+            */}
+            {directCheckoutUrl(plan.id) ? (
+              <a
+                href={directCheckoutUrl(plan.id) ?? '#'}
+                className={`mt-6 block w-full px-5 py-3 text-center text-sm ${
+                  plan.highlight ? 'btn-primary' : 'btn-ghost'
+                }`}
+              >
+                {plan.cta}
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void buy(plan)}
+                disabled={pending !== null}
+                className={`mt-6 w-full px-5 py-3 text-sm ${
+                  plan.highlight ? 'btn-primary' : 'btn-ghost'
+                }`}
+              >
+                {pending === plan.id ? 'Opening checkout…' : plan.cta}
+              </button>
+            )}
           </div>
         ))}
       </div>

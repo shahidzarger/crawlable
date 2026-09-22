@@ -8,6 +8,8 @@ import { DimensionBars } from '@/components/report/DimensionBars';
 import { FindingList } from '@/components/report/FindingList';
 import { CrawlerMatrix } from '@/components/report/CrawlerMatrix';
 import { PageTable } from '@/components/report/PageTable';
+import { FixKitDownloads } from '@/components/report/FixKitDownloads';
+import { ReportActionBar } from '@/components/report/ReportActionBar';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,9 +60,12 @@ export default async function AuditReportPage({
           Report {record.id.slice(0, 8)} · {new Date(result.createdAt).toISOString().slice(0, 10)} ·{' '}
           {isScan ? 'free single-page scan' : `${result.pagesAudited}-page audit`}
         </p>
-        <Link href="/dashboard" className="text-xs underline underline-offset-4">
-          Back to dashboard
-        </Link>
+        <div className="flex items-center gap-4">
+          {isScan ? null : <ReportActionBar auditId={record.id} siteUrl={result.siteUrl} />}
+          <Link href="/dashboard" className="text-xs underline underline-offset-4">
+            All audits
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -93,37 +98,7 @@ export default async function AuditReportPage({
             </Link>
           </section>
         ) : (
-          <section className="surface-card p-6">
-            <h2 className="font-semibold">Your generated files</h2>
-            <p className="mt-2 text-sm ink-secondary">
-              Download them from the dashboard, where your license key is loaded. They are
-              generated from this crawl, not from a template.
-            </p>
-            <ul className="mt-4 space-y-2 text-sm">
-              {(['FIXES.md', 'llms.txt', 'robots.txt', 'schema.jsonld'] as const).map((file) => (
-                <li key={file} className="flex items-baseline gap-3">
-                  <code
-                    className="rounded-md px-2 py-0.5 font-mono text-xs"
-                    style={{ background: 'var(--surface-sunken)', color: 'var(--accent)' }}
-                  >
-                    {file}
-                  </code>
-                  <span className="ink-secondary">
-                    {file === 'FIXES.md'
-                      ? 'Every finding, ordered, with affected URLs'
-                      : file === 'llms.txt'
-                        ? 'Built from your real pages and sections'
-                        : file === 'robots.txt'
-                          ? 'Retrieval crawlers allowed, your rules preserved'
-                          : 'Organization, WebSite and BreadcrumbList blocks'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <Link href="/dashboard" className="btn-primary mt-5 inline-block px-5 py-2.5 text-sm">
-              Open dashboard to download
-            </Link>
-          </section>
+          <FixKitDownloads auditId={record.id} siteUrl={result.siteUrl} />
         )}
       </div>
     </div>

@@ -4,6 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { AuditResult, AuditSummary } from '@/lib/audit/types';
 import { SEVERITY, scoreColor } from '@/components/report/severity';
+import {
+  downloadAuditFile,
+  readStoredLicenseKey,
+  writeStoredLicenseKey,
+} from '@/lib/license-storage';
 
 /**
  * The customer dashboard.
@@ -13,8 +18,6 @@ import { SEVERITY, scoreColor } from '@/components/report/severity';
  * in try/catch because private browsing and blocked site data make every
  * storage call throwable.
  */
-
-const STORAGE_KEY = 'crawlable.license';
 
 interface LicenseInfo {
   plan: string;
@@ -28,22 +31,11 @@ interface LicenseInfo {
   brandColor: string | null;
 }
 
-function readStoredKey(): string {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) ?? '';
-  } catch {
-    return '';
-  }
-}
-
-function writeStoredKey(key: string): void {
-  try {
-    if (key) window.localStorage.setItem(STORAGE_KEY, key);
-    else window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Storage unavailable. The session still works, the key is just not remembered.
-  }
-}
+// Storage lives in lib/license-storage so the report page reads and writes the
+// same entry — two copies of the key name is how a customer ends up unlocked on
+// one page and not the other.
+const readStoredKey = readStoredLicenseKey;
+const writeStoredKey = writeStoredLicenseKey;
 
 export function Dashboard() {
   const [licenseKey, setLicenseKey] = useState('');
@@ -55,6 +47,20 @@ export function Dashboard() {
   const [auditUrl, setAuditUrl] = useState('');
   const [running, setRunning] = useState(false);
   const [latest, setLatest] = useState<AuditResult | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  /** Re-download a past audit's kit without re-running the crawl. */
+  async function downloadKit(audit: AuditSummary) {
+    setDownloading(audit.id);
+    const result = await downloadAuditFile({
+      auditId: audit.id,
+      licenseKey,
+      file: 'zip',
+      siteUrl: audit.siteUrl,
+    });
+    if (!result.ok) setMessage(result.error);
+    setDownloading(null);
+  }
 
   const load = useCallback(async (key: string) => {
     if (!key) return;
@@ -315,12 +321,24 @@ export function Dashboard() {
                       {new Date(audit.createdAt).toISOString().slice(0, 10)}
                     </td>
                     <td className="border-b py-2.5">
-                      <Link
-                        href={`/audit/${audit.id}`}
-                        className="text-xs underline underline-offset-4"
-                      >
-                        Open
-                      </Link>
+                      <div className="flex items-center justify-end gap-3 whitespace-nowrap">
+                        {audit.mode === 'audit' ? (
+                          <button
+                            type="button"
+                            onClick={() => void downloadKit(audit)}
+                            disabled={downloading === audit.id}
+                            className="btn-ghost px-3 py-1.5 text-xs"
+                          >
+                            {downloading === audit.id ? '…' : 'Fix Kit (.zip)'}
+                          </button>
+                        ) : null}
+                        <Link
+                          href={`/audit/${audit.id}`}
+                          className="text-xs underline underline-offset-4"
+                        >
+                          Open
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

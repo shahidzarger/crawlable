@@ -120,11 +120,31 @@ export async function POST(request: Request): Promise<Response> {
           return new Response('OK', { status: 200 });
         }
 
+        /*
+         * `custom_data.plan` is load-bearing.
+         *
+         * This payload carries no variant_id, so it is the only signal that
+         * identifies the plan. Both purchase paths must set it: the API route
+         * sends it as checkout metadata, and the direct links in
+         * lib/checkout-links.ts append `checkout[custom][plan]`. A bare Lemon
+         * Squeezy buy link does not, and a purchase through one lands here
+         * unresolvable — which is why raw buy links must never be published.
+         */
         const plan = resolvePlan(undefined, undefined, custom.plan);
         if (!plan) {
-          console.error('[webhook] could not resolve plan for license_key_created', {
-            orderId: attributes.order_id,
-          });
+          // Logged at error with the key tail and order so the licence can be
+          // provisioned by hand. Returning 200 stops Lemon Squeezy retrying a
+          // delivery that will never succeed — the payload will not improve.
+          console.error(
+            '[webhook] ORPHANED PURCHASE — license_key_created with no resolvable plan. ' +
+              'Provision this customer manually.',
+            {
+              orderId: attributes.order_id,
+              email: attributes.user_email,
+              keyTail: key.slice(-4),
+              customData: custom,
+            },
+          );
           return new Response('OK', { status: 200 });
         }
 
