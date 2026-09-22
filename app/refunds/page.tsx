@@ -39,14 +39,14 @@ export default function RefundsPage() {
           permanently and cannot be returned.
         </p>
         <p>
-          So on a five-audit pack, if you have run two audits, three credits remain and
-          three are refundable. We refund pro rata rather than refusing outright:
+          So on the Growth Pack, if you have run two audits, three credits remain and three
+          are refundable. We refund pro rata rather than refusing outright:
         </p>
         <div className="mt-2 code-block">
           <p className="font-mono text-sm">
-            Agency pack, $99, 5 credits, 2 used
+            Growth Pack, $89, 5 credits, 2 used
             <br />
-            → refund 3 × $19.80 = $59.40
+            → refund 3 × $17.80 = $53.40
           </p>
         </div>
         <Important>
@@ -81,7 +81,7 @@ export default function RefundsPage() {
 
       <Clause n={4} heading="Subscriptions">
         <p>
-          The monthly Agency plan can be cancelled at any time from the link in your
+          The monthly Agency Pro plan can be cancelled at any time from the link in your
           purchase email. Cancellation stops the next charge; the current period runs to
           its end and is not pro-rated, because unlimited audits have been available to
           you throughout it.

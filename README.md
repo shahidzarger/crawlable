@@ -85,9 +85,9 @@ Lemon Squeezy is the merchant of record, so it handles global VAT and sales tax 
 license keys. This app never sees a card detail and never generates a key itself.
 
 1. Create a store, then three products:
-   - **Single audit** — one-time, $39
-   - **Agency pack** — one-time, $99
-   - **Agency** — subscription, $29/month
+   - **Single Audit** — one-time, $39
+   - **Growth Pack** — one-time, $89
+   - **Agency Pro** — subscription, $29/month
 2. Enable license keys on all three (Product → Licensing). Set the activation limit to
    unlimited; Crawlable meters usage itself against the plan catalogue.
 3. Collect the IDs into your environment:

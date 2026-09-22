@@ -96,10 +96,20 @@ export function Pricing() {
         {PLANS.map((plan) => (
           <div
             key={plan.id}
-            className="surface-card relative flex flex-col p-6"
+            /*
+              The highlighted tier is raised out of the row on wide screens and
+              ringed in the accent colour. The badge carries the claim in words,
+              so the emphasis never rests on colour alone.
+            */
+            className={`surface-card relative flex flex-col p-6 ${
+              plan.highlight ? 'lg:-mt-4 lg:mb-4 lg:p-7' : ''
+            }`}
             style={
               plan.highlight
-                ? { borderColor: 'var(--accent)', boxShadow: '0 0 0 1px var(--accent)' }
+                ? {
+                    borderColor: 'var(--accent)',
+                    boxShadow: '0 0 0 2px var(--accent), 0 18px 40px -24px var(--accent)',
+                  }
                 : undefined
             }
           >
@@ -108,7 +118,7 @@ export function Pricing() {
                 className="absolute -top-2.5 left-6 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
                 style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
               >
-                Best value
+                Most popular
               </span>
             ) : null}
 

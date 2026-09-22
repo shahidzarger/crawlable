@@ -22,7 +22,7 @@ export function GET(): Response {
     '## Start here',
     '',
     `- [Free AI readability scan](${SITE_URL}/#scan): enter a domain, get a real measurement of one page in about twenty seconds.`,
-    `- [Pricing](${SITE_URL}/#pricing): $39 one-time for a full audit, $99 for five, $29/month for unlimited white-labelled audits.`,
+    `- [Pricing](${SITE_URL}/#pricing): $39 one-time for a full audit, $89 for five, $29/month for unlimited audits.`,
     `- [FAQ](${SITE_URL}/#faq): how this differs from AI visibility trackers, whether llms.txt works, what the audit covers.`,
     '',
     '## Platform guides',

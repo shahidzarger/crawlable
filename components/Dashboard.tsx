@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { AuditResult, AuditSummary } from '@/lib/audit/types';
 import { SEVERITY, scoreColor } from '@/components/report/severity';
+import { planById } from '@/lib/plans';
 import {
   downloadAuditFile,
   readStoredLicenseKey,
@@ -27,8 +28,6 @@ interface LicenseInfo {
   auditQuota: number | null;
   auditsUsed: number;
   creditsRemaining: number | null;
-  brandName: string | null;
-  brandColor: string | null;
 }
 
 // Storage lives in lib/license-storage so the report page reads and writes the
@@ -215,8 +214,8 @@ export function Dashboard() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Your audits</h1>
           <p className="mt-1 text-sm ink-secondary">
-            {license.plan === 'agency' ? 'Agency' : license.plan === 'pack' ? 'Agency pack' : 'Single audit'}{' '}
-            · key ending {license.keyTail} ·{' '}
+            {/* Read from the catalogue so a plan rename cannot drift out of sync here. */}
+            {planById(license.plan)?.name ?? license.plan} · key ending {license.keyTail} ·{' '}
             {remaining === null ? 'unlimited audits' : `${remaining} credit${remaining === 1 ? '' : 's'} left`}
           </p>
         </div>
@@ -347,10 +346,6 @@ export function Dashboard() {
           </div>
         )}
       </section>
-
-      {license.plan === 'agency' ? (
-        <Branding licenseKey={licenseKey} license={license} onSaved={() => void load(licenseKey)} />
-      ) : null}
     </div>
   );
 }
@@ -409,111 +404,6 @@ function LatestResult({ result, licenseKey }: { result: AuditResult; licenseKey:
           ))}
         </div>
       </div>
-    </section>
-  );
-}
-
-function Branding({
-  licenseKey,
-  license,
-  onSaved,
-}: {
-  licenseKey: string;
-  license: LicenseInfo;
-  onSaved: () => void;
-}) {
-  const [brandName, setBrandName] = useState(license.brandName ?? '');
-  const [brandColor, setBrandColor] = useState(license.brandColor ?? '#3ddc97');
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function save(event: React.FormEvent) {
-    event.preventDefault();
-    setSaving(true);
-    setSaved(false);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/license', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${licenseKey}`,
-        },
-        body: JSON.stringify({
-          brandName: brandName.trim() || null,
-          brandColor: brandColor || null,
-        }),
-      });
-
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) {
-        setError(payload.error ?? 'Could not save branding.');
-        return;
-      }
-
-      setSaved(true);
-      onSaved();
-    } catch {
-      setError('Could not reach the server.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <section className="surface-card p-6">
-      <h2 className="font-semibold">White-label branding</h2>
-      <p className="mt-1 text-sm ink-secondary">
-        Your name and colour appear on every report you share with a client.
-      </p>
-
-      <form onSubmit={save} className="mt-4 flex flex-wrap items-end gap-4">
-        <div className="flex-1 min-w-[200px]">
-          <label htmlFor="brand-name" className="block text-xs ink-muted">
-            Agency name
-          </label>
-          <input
-            id="brand-name"
-            type="text"
-            maxLength={60}
-            value={brandName}
-            onChange={(event) => setBrandName(event.target.value)}
-            placeholder="Your agency"
-            className="field mt-1.5 w-full px-3 py-2 text-sm outline-none"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="brand-color" className="block text-xs ink-muted">
-            Accent colour
-          </label>
-          <input
-            id="brand-color"
-            type="color"
-            value={brandColor}
-            onChange={(event) => setBrandColor(event.target.value)}
-            className="field mt-1.5 h-[38px] w-20 cursor-pointer px-1 py-1"
-          />
-        </div>
-
-        <button type="submit" className="btn-primary px-5 py-2 text-sm" disabled={saving}>
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </form>
-
-      {saved ? (
-        <p className="mt-3 text-sm" style={{ color: 'var(--data-good)' }}>
-          <span aria-hidden>✓ </span>Saved.
-        </p>
-      ) : null}
-      {error ? (
-        <p className="mt-3 text-sm" style={{ color: 'var(--data-bad)' }}>
-          <span aria-hidden>{SEVERITY.critical.icon} </span>
-          {error}
-        </p>
-      ) : null}
     </section>
   );
 }
