@@ -39,14 +39,14 @@ export const FAQS: readonly Faq[] = [
       'No. It is at most 40 GET requests at four concurrent connections, with a polite user agent and a per-request timeout. That is a fraction of what a single search engine crawl does in an hour.',
   },
   {
-    question: 'Can I put my own branding on the report?',
+    question: 'Can I share a report with a client?',
     answer:
-      'On the Agency plan, yes — set your name and brand colour once and every report you generate carries them. The one-time plans produce Crawlable-branded reports, which are still shareable by link with no login required.',
+      'Yes. Every report has its own link that anyone can open with no login and no account. The generated fix files stay private to your licence — a client can read the findings without being able to download the kit.',
   },
   {
-    question: 'Who handles payment and tax?',
+    question: 'How is payment and tax handled?',
     answer:
-      'Lemon Squeezy, acting as merchant of record. That means they are the seller of record on your invoice and they handle VAT and sales tax in whichever country you are in. Crawlable never sees or stores a card detail, and your license key is stored hashed.',
+      'Checkout runs on a hosted payment page, so Crawlable never sees or stores a card detail. VAT and sales tax are calculated and remitted for your country automatically, and you get a proper invoice. Your licence key is stored only as a hash.',
   },
   {
     question: 'What if the audit finds nothing wrong?',

@@ -130,20 +130,9 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-10 border-t pt-6">
-          <p className="text-xs ink-secondary">
-            <span
-              aria-hidden
-              className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle"
-              style={{ background: 'var(--data-good)' }}
-            />
-            Payments securely processed by Lemon Squeezy, our Merchant of Record.
-          </p>
-
-          <div className="mt-3 flex flex-col gap-3 text-xs ink-muted sm:flex-row sm:items-center sm:justify-between">
-            <p>© {year} Crawlable. All rights reserved.</p>
-            <p>Crawls are rate-limited and respect your robots.txt.</p>
-          </div>
+        <div className="mt-10 flex flex-col gap-3 border-t pt-6 text-xs ink-muted sm:flex-row sm:items-center sm:justify-between">
+          <p>© {year} Crawlable. All rights reserved.</p>
+          <p>Crawls are rate-limited and respect your robots.txt.</p>
         </div>
       </div>
     </footer>

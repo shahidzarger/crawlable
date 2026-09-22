@@ -1,40 +1,51 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { PLANS, type Plan } from '@/lib/plans';
 import { SEVERITY } from '@/components/report/severity';
 import { directCheckoutUrl } from '@/lib/checkout-links';
 
-/** Pricing table. Each button creates a Lemon Squeezy checkout and redirects. */
+/** Pricing table. Selecting a plan redirects to the hosted checkout. */
 export function Pricing() {
-  const [pending, setPending] = useState<string | null>(null);
+  /**
+   * The tier the customer has committed to, or null.
+   *
+   * One piece of state drives both paths — the direct link and the API
+   * fallback — so the lock behaves identically whichever is configured. It is
+   * set synchronously in the click handler, before any await and before the
+   * browser begins navigating, so the feedback is immediate rather than
+   * arriving after a network round trip.
+   */
+  const [activeTierId, setActiveTierId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const locked = activeTierId !== null;
 
   /*
    * Re-enable the buttons when the browser restores this page from the
    * back/forward cache.
    *
-   * Clicking a plan sets `pending` and then navigates to Lemon Squeezy. If the
-   * customer presses Back, the browser may restore this page from bfcache
+   * Clicking a plan sets `activeTierId` and then navigates to the checkout. If
+   * the customer presses Back, the browser may restore this page from bfcache
    * rather than re-running it — the DOM and all React state come back exactly
-   * as they were left, so `pending` is still set and every button is still
-   * disabled and reading "Opening checkout…". The page looks broken, and the
-   * customer cannot buy. On mobile Safari, where Back is a swipe, this is the
-   * common path rather than the edge case.
+   * as they were left, so `activeTierId` is still set and all three tiers are
+   * still locked and reading "Redirecting to checkout…". The page looks
+   * broken, and the customer cannot buy. On mobile Safari, where Back is a
+   * swipe, this is the common path rather than the edge case.
    *
    * `pageshow` fires on every page display, including a bfcache restore, and
    * `persisted` is true only for that restore — a normal load leaves it false,
    * and in that case React state started empty anyway, so there is nothing to
    * reset.
    *
-   * Only `pending` is cleared. `error` is left alone: it is null whenever a
+   * Only the lock is cleared. `error` is left alone: it is null whenever a
    * navigation to checkout happened, so clearing it would be a no-op here, and
    * discarding a genuine error message the customer has not read yet would be
    * worse than leaving it.
    */
   useEffect(() => {
     function handlePageShow(event: PageTransitionEvent) {
-      if (event.persisted) setPending(null);
+      if (event.persisted) setActiveTierId(null);
     }
 
     window.addEventListener('pageshow', handlePageShow);
@@ -42,7 +53,7 @@ export function Pricing() {
   }, []);
 
   async function buy(plan: Plan) {
-    setPending(plan.id);
+    setActiveTierId(plan.id);
     setError(null);
 
     try {
@@ -56,14 +67,14 @@ export function Pricing() {
 
       if (!response.ok || !payload.url) {
         setError(payload.error ?? 'Could not start checkout. Try again in a moment.');
-        setPending(null);
+        setActiveTierId(null);
         return;
       }
 
       window.location.href = payload.url;
     } catch {
       setError('Could not reach the checkout service. Try again in a moment.');
-      setPending(null);
+      setActiveTierId(null);
     }
   }
 
@@ -142,10 +153,10 @@ export function Pricing() {
 
             {/*
               A configured plan renders a real link: the browser starts
-              navigating on mousedown, with no fetch, no serverless cold start
-              and no third-party API call in the way. There is no pending state
-              to get stuck in either, which makes the bfcache problem moot for
-              this path.
+              navigating on the click itself, with no fetch, no serverless cold
+              start and no third-party API call in the way. The click handler
+              does NOT preventDefault — it only records the choice, so the
+              native navigation proceeds at full speed while the UI updates.
 
               An unconfigured plan keeps the original button and API round trip,
               so a partial configuration is slow rather than broken.
@@ -153,22 +164,62 @@ export function Pricing() {
             {directCheckoutUrl(plan.id) ? (
               <a
                 href={directCheckoutUrl(plan.id) ?? '#'}
-                className={`mt-6 block w-full px-5 py-3 text-center text-sm ${
+                /*
+                  flushSync, not a plain setState.
+
+                  React schedules a re-render asynchronously. A native anchor
+                  navigation begins immediately, and the browser stops
+                  committing frames for a document it is leaving — so the
+                  scheduled render never runs and the customer sees no feedback
+                  at all. Measured: without this, the DOM still reads the
+                  original label when the navigation starts.
+
+                  flushSync commits the update synchronously, inside the event
+                  handler, before the browser acts on the click. The navigation
+                  is still native and still instant — preventDefault would undo
+                  the whole point of the direct link.
+                */
+                onClick={() => flushSync(() => setActiveTierId(plan.id))}
+                /*
+                  An anchor ignores `disabled`, so a locked one is taken out of
+                  the tab order and has pointer events removed — otherwise a
+                  keyboard user could still fire a second checkout from a
+                  control that looks inert.
+                */
+                aria-disabled={locked && activeTierId !== plan.id}
+                aria-busy={activeTierId === plan.id}
+                tabIndex={locked && activeTierId !== plan.id ? -1 : undefined}
+                className={`mt-6 flex w-full items-center justify-center gap-2 px-5 py-3 text-center text-sm ${
                   plan.highlight ? 'btn-primary' : 'btn-ghost'
-                }`}
+                } ${lockClass(locked, activeTierId === plan.id)}`}
               >
-                {plan.cta}
+                {activeTierId === plan.id ? (
+                  <>
+                    <Spinner />
+                    Redirecting to checkout…
+                  </>
+                ) : (
+                  plan.cta
+                )}
               </a>
             ) : (
               <button
                 type="button"
                 onClick={() => void buy(plan)}
-                disabled={pending !== null}
-                className={`mt-6 w-full px-5 py-3 text-sm ${
+                disabled={locked}
+                aria-busy={activeTierId === plan.id}
+                className={`mt-6 flex w-full items-center justify-center gap-2 px-5 py-3 text-sm ${
                   plan.highlight ? 'btn-primary' : 'btn-ghost'
-                }`}
+                } ${lockClass(locked, activeTierId === plan.id)}`}
               >
-                {pending === plan.id ? 'Opening checkout…' : plan.cta}
+                {activeTierId === plan.id ? (
+                  <>
+                    <Spinner />
+                    Redirecting to checkout…
+                  </>
+                ) : (
+                  plan.cta
+                )}
               </button>
             )}
           </div>
@@ -176,9 +227,39 @@ export function Pricing() {
       </div>
 
       <p className="mt-6 text-center text-xs ink-muted">
-        Paid through Lemon Squeezy, which acts as merchant of record and handles VAT and sales
-        tax worldwide. Your license key arrives by email straight after payment.
+        Your licence key arrives by email straight after payment.
       </p>
     </section>
+  );
+}
+
+/**
+ * Styling for the two locked states.
+ *
+ * The chosen tier stays at full opacity and shows a wait cursor — it is
+ * working, not unavailable. The other two dim, because they genuinely cannot
+ * be used until the redirect resolves one way or the other.
+ */
+function lockClass(locked: boolean, isActive: boolean): string {
+  if (!locked) return '';
+  return isActive
+    ? 'cursor-wait'
+    : 'pointer-events-none cursor-not-allowed opacity-60';
+}
+
+/** Motion is paired with the words "Redirecting to checkout…", never alone. */
+function Spinner() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 16 16"
+      className="h-3.5 w-3.5 animate-spin"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <circle cx="8" cy="8" r="6" opacity="0.25" />
+      <path d="M14 8a6 6 0 0 0-6-6" strokeLinecap="round" />
+    </svg>
   );
 }
