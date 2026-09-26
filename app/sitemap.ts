@@ -6,7 +6,7 @@ import { SITE_URL } from '@/lib/site-url';
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
-  const staticRoutes = ['', '/platforms', '/ai-crawlers'].map((path) => ({
+  const staticRoutes = ['', '/platforms', '/ai-crawlers', '/contact'].map((path) => ({
     url: `${SITE_URL}${path}`,
     lastModified: now,
     changeFrequency: 'weekly' as const,

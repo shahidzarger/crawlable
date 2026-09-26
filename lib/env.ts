@@ -35,6 +35,17 @@ const schema = z.object({
 
   /** Secret guarding cron and internal endpoints. */
   CRON_SECRET: z.string().min(16).optional(),
+
+  /** Brevo API key for the contact form relay. Contact form 500s without it. */
+  BREVO_API_KEY: z.string().min(1).optional(),
+  /** Where contact form submissions land. */
+  CONTACT_EMAIL_TO: z.string().email().default('support@usecrawlable.com'),
+  /**
+   * The From address on relayed contact mail. Must be a sender Brevo has
+   * verified for your account, or every send is rejected — the customer's own
+   * address goes in replyTo instead, which is what makes Reply work.
+   */
+  CONTACT_EMAIL_FROM: z.string().email().default('support@usecrawlable.com'),
 });
 
 export type Env = z.infer<typeof schema>;

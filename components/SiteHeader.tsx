@@ -35,6 +35,12 @@ export function SiteHeader() {
           >
             Pricing
           </Link>
+          <Link
+            href="/contact"
+            className="hidden rounded-lg px-3 py-1.5 ink-secondary transition-colors hover:text-[var(--ink-primary)] sm:block"
+          >
+            Contact
+          </Link>
           <Link href="/dashboard" className="btn-ghost ml-1 px-3 py-1.5 text-sm">
             Dashboard
           </Link>

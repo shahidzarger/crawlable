@@ -119,11 +119,16 @@ export function SiteFooter() {
                 </Link>
               </li>
               <li>
+                <Link href="/contact" className="ink-secondary hover:text-[var(--ink-primary)]">
+                  Contact us
+                </Link>
+              </li>
+              <li>
                 <a
                   href={`mailto:${SUPPORT_EMAIL}`}
                   className="ink-secondary hover:text-[var(--ink-primary)]"
                 >
-                  Contact support
+                  {SUPPORT_EMAIL}
                 </a>
               </li>
             </ul>
