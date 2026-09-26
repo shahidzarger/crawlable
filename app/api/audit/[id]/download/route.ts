@@ -1,6 +1,7 @@
 import { authenticateLicense, fail } from '@/lib/api';
 import { store } from '@/lib/db';
 import { generateAll } from '@/lib/audit';
+import { GENERATED_FILE_NAMES, isCompleteFixKit } from '@/lib/audit/generators';
 import { createZip } from '@/lib/audit/zip';
 import type { GeneratedFiles } from '@/lib/audit/types';
 
@@ -59,17 +60,26 @@ export async function GET(
     return fail('not-your-audit', 'This report belongs to a different license.', 403);
   }
 
-  // Older records may predate a generator change, so regenerate on demand.
-  const files = record.result.generated ?? generateAll(record.result);
+  /*
+   * Regenerate unless the stored kit is COMPLETE, not merely present.
+   *
+   * `?? generateAll(...)` only covered a record with no generated files at
+   * all. A record saved before sitemap.xml existed has a generated object with
+   * four keys, which is truthy, so it was served as-is and the fifth file came
+   * back undefined. Every audit run before that generator landed downloads
+   * correctly now, because the shape is what decides.
+   */
+  const files = isCompleteFixKit(record.result.generated)
+    ? record.result.generated
+    : generateAll(record.result);
 
   const host = record.siteUrl.replace(/^https?:\/\//, '').replace(/[^a-z0-9.-]/gi, '-');
 
   if (wantsZip) {
+    // Driven off GENERATED_FILE_NAMES rather than the content-type map's key
+    // order, so the archive contents are defined in one place.
     const archive = createZip(
-      (Object.keys(CONTENT_TYPES) as Array<keyof GeneratedFiles>).map((name) => ({
-        name,
-        content: files[name],
-      })),
+      GENERATED_FILE_NAMES.map((name) => ({ name, content: files[name] })),
     );
 
     return new Response(new Uint8Array(archive), {

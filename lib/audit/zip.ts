@@ -39,6 +39,19 @@ export interface ZipEntry {
 
 /** Build a ZIP archive in memory. */
 export function createZip(entries: ZipEntry[]): Buffer {
+  /*
+   * Fail loudly, naming the file.
+   *
+   * `Buffer.from(undefined)` throws a TypeError that names no file, which is
+   * how a Fix Kit missing one entry turned into an opaque 500 on the download
+   * endpoint instead of a message anyone could act on.
+   */
+  for (const entry of entries) {
+    if (typeof entry.content !== 'string') {
+      throw new TypeError(`Cannot archive "${entry.name}": no content was generated.`);
+    }
+  }
+
   const localParts: Buffer[] = [];
   const centralParts: Buffer[] = [];
   let offset = 0;

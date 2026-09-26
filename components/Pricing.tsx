@@ -105,26 +105,21 @@ export function Pricing() {
         </div>
       ) : null}
 
-      <div className="mt-10 grid gap-5 lg:grid-cols-3">
+      <div className="mt-12 grid gap-5 lg:grid-cols-3">
         {PLANS.map((plan) => (
           <div
             key={plan.id}
             /*
-              The highlighted tier is raised out of the row on wide screens and
-              ringed in the accent colour. The badge carries the claim in words,
-              so the emphasis never rests on colour alone.
+              All three cards are identical at rest. The accent follows the
+              cursor instead of being baked into one tier, which is handled
+              entirely by .tier-card in globals.css — see the comment there for
+              why this is not React state.
+
+              The "Most popular" badge stays on the Growth tier: it carries the
+              claim in words, so the emphasis never rested on colour alone and
+              does not now depend on a hover a touch device never sends.
             */
-            className={`surface-card relative flex flex-col p-6 ${
-              plan.highlight ? 'lg:-mt-4 lg:mb-4 lg:p-7' : ''
-            }`}
-            style={
-              plan.highlight
-                ? {
-                    borderColor: 'var(--accent)',
-                    boxShadow: '0 0 0 2px var(--accent), 0 18px 40px -24px var(--accent)',
-                  }
-                : undefined
-            }
+            className="surface-card tier-card relative flex flex-col p-6"
           >
             {plan.highlight ? (
               <span
@@ -196,9 +191,10 @@ export function Pricing() {
                 aria-disabled={locked && activeTierId !== plan.id}
                 aria-busy={activeTierId === plan.id}
                 tabIndex={locked && activeTierId !== plan.id ? -1 : undefined}
-                className={`mt-6 flex w-full items-center justify-center gap-2 px-5 py-3 text-center text-sm ${
-                  plan.highlight ? 'btn-primary' : 'btn-ghost'
-                } ${lockClass(locked, activeTierId === plan.id)}`}
+                className={`btn-ghost tier-cta mt-6 flex w-full items-center justify-center gap-2 px-5 py-3 text-center text-sm ${lockClass(
+                  locked,
+                  activeTierId === plan.id,
+                )}`}
               >
                 {activeTierId === plan.id ? (
                   <>
@@ -215,9 +211,10 @@ export function Pricing() {
                 onClick={() => void buy(plan)}
                 disabled={locked}
                 aria-busy={activeTierId === plan.id}
-                className={`mt-6 flex w-full items-center justify-center gap-2 px-5 py-3 text-sm ${
-                  plan.highlight ? 'btn-primary' : 'btn-ghost'
-                } ${lockClass(locked, activeTierId === plan.id)}`}
+                className={`btn-ghost tier-cta mt-6 flex w-full items-center justify-center gap-2 px-5 py-3 text-sm ${lockClass(
+                  locked,
+                  activeTierId === plan.id,
+                )}`}
               >
                 {activeTierId === plan.id ? (
                   <>
