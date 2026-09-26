@@ -86,9 +86,9 @@ export function Pricing() {
           Pay once, keep the files
         </h2>
         <p className="mt-3 ink-secondary">
-          The established SEO suites charge {SEO_SUITE_PRICE_PROSE} a month, on a recurring
-          subscription, to tell you what is broken. This tells you what AI can actually read
-          of your site, hands you the files that fix it, and re-scans to prove they worked.
+          Legacy SEO suites charge {SEO_SUITE_PRICE_PROSE} a month, on a recurring retainer,
+          to tell you what is broken. This tells you what AI can actually read of your site,
+          hands you the files that fix it, and re-scans to prove they worked.
         </p>
       </div>
 

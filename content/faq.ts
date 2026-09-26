@@ -11,10 +11,10 @@ export const FAQS: readonly Faq[] = [
   {
     question: 'Is it really true that AI crawlers do not run JavaScript?',
     answer:
-      'For most of them, yes. Google\'s crawlers render JavaScript, and Google-Extended and Applebot-Extended inherit that infrastructure. GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-SearchBot, PerplexityBot and the rest fetch raw HTML and parse it. That is why a site can rank perfectly well in Google Search and still be absent from AI answers: the two pipelines do not see the same page.',
+      'For most of them, yes. Two exceptions do render JavaScript: Google-Extended, which inherits Google\'s rendering infrastructure, and Apple\'s Applebot-Extended. GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-SearchBot, PerplexityBot and the rest fetch raw HTML and parse it. That is why a site can rank perfectly well in Google Search and still be absent from AI answers: the two pipelines do not see the same page.',
   },
   {
-    question: 'How is this different from Profound, Peec or Otterly?',
+    question: 'How is this different from an AI visibility tracker?',
     answer:
       'Those tools monitor what AI systems say about your brand across a set of prompts, billed monthly. Crawlable measures whether AI systems can read your site at all, and generates the files to fix it, billed once. They answer different questions, and this one comes first — prompt monitoring on a site a crawler cannot read tells you only that you are absent.',
   },
@@ -36,7 +36,7 @@ export const FAQS: readonly Faq[] = [
   {
     question: 'Will the crawl hurt my site?',
     answer:
-      'No. It is at most 40 GET requests at four concurrent connections, with a polite user agent and a per-request timeout. That is a fraction of what a single search engine crawl does in an hour.',
+      'No. It is at most 40 page fetches at four concurrent connections, plus your robots.txt, llms.txt and sitemap — roughly fifty requests in total, with a polite user agent and a per-request timeout. That is a fraction of what a single search engine crawl does in an hour.',
   },
   {
     question: 'Can I share a report with a client?',
@@ -46,7 +46,7 @@ export const FAQS: readonly Faq[] = [
   {
     question: 'How is payment and tax handled?',
     answer:
-      'Checkout runs on a hosted payment page, so Crawlable never sees or stores a card detail. VAT and sales tax are calculated and remitted for your country automatically, and you get a proper invoice. Your licence key is stored only as a hash.',
+      'Checkout runs on a hosted payment page, so Crawlable never sees or stores a card detail. VAT and sales tax are calculated and remitted for your country automatically, and you get a proper invoice. Your licence key is stored only as a hash, plus its last four characters so you can tell your keys apart.',
   },
   {
     question: 'What if the audit finds nothing wrong?',

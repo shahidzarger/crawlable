@@ -70,9 +70,9 @@ export const PLANS: readonly Plan[] = [
     domainSlots: 1,
     windowDays: 30,
     recurring: false,
-    tagline: 'Ideal for solo founders launching a product.',
+    tagline: 'For one website or web app you want cited, not ignored.',
     features: [
-      '1 domain audit, up to 40 pages',
+      '1 website or web app audited, up to 40 pages',
       'Fix Kit .zip: robots.txt, sitemap.xml, llms.txt, schema.jsonld',
       '2 verification re-scans included (30-day window)',
       'Re-scan from your report for a before-and-after score',
@@ -92,9 +92,9 @@ export const PLANS: readonly Plan[] = [
     domainSlots: 3,
     windowDays: 60,
     recurring: false,
-    tagline: 'For serial founders and growing SaaS portfolios.',
+    tagline: 'For a small portfolio: production, staging and a second brand.',
     features: [
-      'Up to 3 domains tracked',
+      'Up to 3 websites, web apps or client domains tracked',
       '10 total scans across those domains (60-day window)',
       'A complete Fix Kit for each of the 3 sites',
       'Re-scan any of them to prove a fix landed, without spending a slot',
@@ -116,7 +116,7 @@ export const PLANS: readonly Plan[] = [
     recurring: false,
     tagline: 'For consultants, agencies, and web developers.',
     features: [
-      'Up to 15 domains tracked',
+      'Up to 15 client domains tracked — sites, stores or web apps',
       '50 total scans across the portfolio (60-day window)',
       'A Fix Kit per client site, generated from that site\'s own crawl',
       'Enough scans to audit a portfolio and verify every fix',

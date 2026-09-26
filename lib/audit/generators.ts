@@ -147,7 +147,7 @@ export function generateLlmsTxt(result: AuditResult): string {
   lines.push(
     '## Optional',
     '',
-    `- [Full sitemap](${new URL('/sitemap.xml', siteUrl).toString()}): every indexable URL on this site.`,
+    `- [Sitemap](${new URL('/sitemap.xml', siteUrl).toString()}): the XML sitemap for this site.`,
     '',
   );
 

@@ -91,16 +91,16 @@ export function Scanner() {
           spellCheck={false}
           value={url}
           onChange={(event) => setUrl(event.target.value)}
-          placeholder="yourdomain.com"
+          placeholder="https://yourwebsite.com"
           className="field flex-1 px-4 py-3 text-base outline-none"
           disabled={state.phase === 'scanning'}
         />
         <button
           type="submit"
-          className="btn-primary px-6 py-3 text-base"
+          className="btn-primary whitespace-nowrap px-6 py-3 text-base"
           disabled={state.phase === 'scanning' || url.trim().length === 0}
         >
-          {state.phase === 'scanning' ? 'Scanning…' : 'Scan free'}
+          {state.phase === 'scanning' ? 'Scanning…' : 'Run Diagnostic Preview'}
         </button>
       </form>
 

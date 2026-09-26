@@ -69,27 +69,28 @@ export default function HomePage() {
               </p>
 
               <h1 className="mt-5 text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.15rem]">
-                <span className="block">Is your SaaS invisible</span>
+                <span className="block">Is your website invisible</span>
                 <span className="block" style={{ color: 'var(--accent)' }}>
                   to AI search engines?
                 </span>
               </h1>
 
               <p className="mt-5 max-w-xl text-lg leading-relaxed ink-secondary">
-                Traditional SEO is only half the battle. Crawlable diagnoses raw-HTML crawler
-                bottlenecks, generates ready-to-deploy Fix Kits (
+                Traditional SEO is only half the battle. When someone searches on ChatGPT,
+                Perplexity or Claude, will your site be cited — or ignored? Crawlable audits
+                your raw-HTML extraction bottlenecks, generates ready-to-deploy Fix Kits (
                 <code className="font-mono text-base">robots.txt</code>,{' '}
                 <code className="font-mono text-base">sitemap.xml</code>,{' '}
                 <code className="font-mono text-base">schema.jsonld</code>,{' '}
-                <code className="font-mono text-base">llms.txt</code>), and re-scans your site
-                to verify your fixes.
+                <code className="font-mono text-base">llms.txt</code>), and re-scans to verify
+                your score.
               </p>
 
               <div className="mt-8 max-w-xl">
-                <p className="mb-3 text-sm ink-secondary">
-                  Enter your domain to run a free diagnostic preview
-                </p>
                 <Scanner />
+                <p className="mt-4 text-sm ink-muted">
+                  Engineered for web apps, modern websites, e-commerce, and agencies.
+                </p>
               </div>
             </div>
 
@@ -222,49 +223,58 @@ export default function HomePage() {
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
             <div>
               <h2 className="text-3xl font-semibold tracking-tight">
-                This is not another AI visibility tracker
+                This is not another recurring SEO subscription
               </h2>
               <p className="mt-4 leading-relaxed ink-secondary">
-                The established SEO suites — Ahrefs, Semrush and the AI visibility trackers
-                that followed them — charge {SEO_SUITE_PRICE_PROSE} a month on a recurring
-                subscription, and what you get for it is a report of what is broken.
+                Legacy enterprise SEO suites charge upwards of {SEO_SUITE_PRICE_PROSE} every
+                month on a recurring retainer — and what you get for it is a diagnostic
+                report telling you what is broken.
               </p>
               <p className="mt-4 leading-relaxed ink-secondary">
-                They also assume the crawler can read your site at all. That assumption is
-                the thing worth checking first, and it is the one thing none of them check —
-                nor do they hand you the files that fix it.
+                They also focus on keyword ranks while assuming a modern AI crawler can read
+                your client-rendered pages. Crawlable checks what actually decides AI
+                discovery: raw-HTML extraction, retrieval bot permissions, structured data
+                and heading structure. Then, instead of handing you homework, it generates
+                the production-ready files that fix what it found.
               </p>
             </div>
 
-            <div className="surface-card overflow-hidden">
+            <div className="surface-card overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="text-left text-xs uppercase tracking-wider ink-muted">
-                    <th className="border-b px-5 py-3 font-medium">&nbsp;</th>
-                    <th className="border-b px-5 py-3 font-medium">SEO suites</th>
-                    <th className="border-b px-5 py-3 font-medium">Crawlable</th>
+                    <th className="border-b px-4 py-3 font-medium">&nbsp;</th>
+                    <th className="border-b px-4 py-3 font-medium">Legacy SEO suites</th>
+                    <th className="border-b px-4 py-3 font-medium">AI rank trackers</th>
+                    <th className="border-b px-4 py-3 font-medium">
+                      Crawlable (Fix &amp; Verify)
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   <ComparisonRow
-                    label="Answers"
-                    them="What AI says about you"
-                    us="What AI can read of you"
+                    label="Pricing"
+                    legacy={`${SEO_SUITE_PRICE_RANGE} / month`}
+                    trackers="Monthly subscription"
+                    us="$29–$199 one-time"
                   />
                   <ComparisonRow
-                    label="Price"
-                    them={`${SEO_SUITE_PRICE_RANGE} / month`}
-                    us="$29 once"
+                    label="What you get"
+                    legacy="A list of errors, no code"
+                    trackers="Prompt mentions over time"
+                    us="Automated Fix Kit: robots.txt, sitemap.xml, schema.jsonld, llms.txt"
                   />
                   <ComparisonRow
-                    label="Output"
-                    them="Dashboards and trends"
-                    us="Files you paste today"
+                    label="Verification"
+                    legacy="Re-audit while you keep paying"
+                    trackers="Re-checks while you keep paying"
+                    us="Included re-scans to verify the fix landed"
                   />
                   <ComparisonRow
-                    label="Needed when"
-                    them="You already rank"
-                    us="Before anything else works"
+                    label="What it measures"
+                    legacy="Keyword ranks and backlinks"
+                    trackers="What AI says about you"
+                    us="What AI can actually read of you"
                   />
                 </tbody>
               </table>
@@ -377,14 +387,34 @@ function Deliverable({ file, body }: { file: string; body: string }) {
   );
 }
 
-function ComparisonRow({ label, them, us }: { label: string; them: string; us: string }) {
+/**
+ * One row of the category comparison.
+ *
+ * Three columns rather than two, because "legacy SEO suite" and "AI rank
+ * tracker" are different products with different failure modes, and collapsing
+ * them into one "them" column was what made the old table read as a strawman.
+ * No third party is named: the comparison is about delivery models, which do
+ * not change monthly the way a competitor's price list does.
+ */
+function ComparisonRow({
+  label,
+  legacy,
+  trackers,
+  us,
+}: {
+  label: string;
+  legacy: string;
+  trackers: string;
+  us: string;
+}) {
   return (
     <tr>
-      <td className="border-b px-5 py-3 text-xs uppercase tracking-wider ink-muted">
+      <td className="border-b px-4 py-3 text-xs uppercase tracking-wider ink-muted">
         {label}
       </td>
-      <td className="border-b px-5 py-3 ink-secondary">{them}</td>
-      <td className="border-b px-5 py-3 font-medium">{us}</td>
+      <td className="border-b px-4 py-3 ink-secondary">{legacy}</td>
+      <td className="border-b px-4 py-3 ink-secondary">{trackers}</td>
+      <td className="border-b px-4 py-3 font-medium">{us}</td>
     </tr>
   );
 }

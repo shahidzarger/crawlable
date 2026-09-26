@@ -15,7 +15,7 @@ export function GET(): Response {
   const lines = [
     '# Crawlable',
     '',
-    '> Crawlable audits a website the way non-rendering AI crawlers read it — raw HTML, no JavaScript — then generates a Fix Kit (robots.txt, sitemap.xml, llms.txt, schema.jsonld) and re-scans to verify the fixes landed. Free single-page scan; $29 for a full 40-page audit plus two verification re-scans.',
+    '> Crawlable audits any website or web app the way non-rendering AI crawlers read it — raw HTML, no JavaScript — then generates a Fix Kit (robots.txt, sitemap.xml, llms.txt, schema.jsonld) and re-scans to verify the fixes landed. Free single-page scan; $29 for a full 40-page audit plus two verification re-scans.',
     '',
     'Most AI crawlers (GPTBot, ClaudeBot, PerplexityBot and others) do not execute JavaScript. Content that only appears after hydration is invisible to them. Crawlable measures how much of a site they can actually read.',
     '',
@@ -23,7 +23,7 @@ export function GET(): Response {
     '',
     `- [Free AI readability scan](${SITE_URL}/#scan): enter a domain, get a real measurement of one page in about twenty seconds.`,
     `- [Pricing](${SITE_URL}/#pricing): $29 one time for 1 domain and 3 scans, $79 for 3 domains and 10 scans, $199 for 15 domains and 50 scans.`,
-    `- [FAQ](${SITE_URL}/#faq): how this differs from AI visibility trackers, whether llms.txt works, what the audit covers.`,
+    `- [FAQ](${SITE_URL}/#faq): how this differs from an AI visibility tracker, whether llms.txt works, what the audit covers.`,
     '',
     '## Platform guides',
     '',

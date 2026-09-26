@@ -22,7 +22,7 @@ import { canonicalKey, safeCanonicalKey } from './url';
 const UTILITY_PATTERN =
   /(^|\/)(terms|privacy|refunds?|legal|cookies?|imprint|disclaimer|accessibility|contact|support|login|log-in|signin|sign-in|signup|sign-up|register|account|cart|checkout|thank-you|404)(\/|$)/i;
 
-/** Paths that carry the commercial weight of a SaaS site. */
+/** Paths that carry the commercial weight of a website or web app. */
 const CORE_PATTERN =
   /(^|\/)(pricing|plans|product|products|features|solutions|platform|use-cases?|integrations?|docs?|documentation|blog|guides?|customers|case-stud(y|ies))(\/|$)/i;
 
