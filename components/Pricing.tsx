@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom';
 import { PLANS, type Plan } from '@/lib/plans';
 import { SEVERITY } from '@/components/report/severity';
 import { directCheckoutUrl } from '@/lib/checkout-links';
+import { SEO_SUITE_PRICE_PROSE } from '@/lib/benchmarks';
 
 /** Pricing table. Selecting a plan redirects to the hosted checkout. */
 export function Pricing() {
@@ -85,8 +86,9 @@ export function Pricing() {
           Pay once, keep the files
         </h2>
         <p className="mt-3 ink-secondary">
-          The monitoring tools charge $95 to $500 a month to tell you what AI says about you.
-          This tells you what AI can read, and hands you the fix.
+          The established SEO suites charge {SEO_SUITE_PRICE_PROSE} a month, on a recurring
+          subscription, to tell you what is broken. This tells you what AI can actually read
+          of your site, hands you the files that fix it, and re-scans to prove they worked.
         </p>
       </div>
 

@@ -240,3 +240,29 @@ export async function analyseRobots(origin: string): Promise<RobotsAnalysis> {
     error: null,
   };
 }
+
+/** The token site owners use to name our crawler in robots.txt. */
+export const CRAWLABLE_BOT_TOKEN = 'CrawlableBot';
+
+/**
+ * Has this site explicitly opted out of being audited by us?
+ *
+ * The audit deliberately does not obey robots.txt in general — its job is to
+ * measure what an AI crawler would receive, and a site that blocks everything
+ * still needs to be told so. But a site owner who names CrawlableBot by hand
+ * is not configuring their AI visibility; they are telling us specifically to
+ * go away, and that is a request with no legitimate reason to refuse.
+ *
+ * Note the `explicit` requirement. A wildcard `Disallow: /` does NOT trigger
+ * this: honouring it would make the product unable to audit a large share of
+ * the sites that most need auditing, and the owner never asked us anything.
+ * Only a group that names this crawler counts.
+ */
+export function isCrawlableBotOptedOut(analysis: RobotsAnalysis): boolean {
+  if (!analysis.found) return false;
+
+  const { group, explicit } = selectGroup(analysis.groups, CRAWLABLE_BOT_TOKEN);
+  if (!explicit || !group) return false;
+
+  return !isPathAllowed(group, '/').allowed;
+}

@@ -53,7 +53,12 @@ export async function POST(request: Request): Promise<Response> {
     return ok({ scan: redactForFreeScan(result) });
   } catch (error) {
     if (error instanceof FetchError) {
-      const status = error.code === 'blocked-host' || error.code === 'invalid-url' ? 400 : 502;
+      const status =
+        error.code === 'bot-opted-out'
+          ? 403
+          : error.code === 'blocked-host' || error.code === 'invalid-url'
+            ? 400
+            : 502;
       return fail(error.code, error.message, status);
     }
 

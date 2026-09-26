@@ -65,7 +65,15 @@ export default function TermsPage() {
           Because the audit exists to measure what an AI crawler would receive, it fetches
           the pages you nominate regardless of{' '}
           <code className="font-mono text-sm">robots.txt</code> directives — which is
-          precisely why the authorisation above is required rather than optional.
+          precisely why the authorisation above is required rather than optional. The one
+          directive it does obey is an explicit opt-out: a{' '}
+          <code className="font-mono text-sm">User-agent: CrawlableBot</code> group that
+          disallows <code className="font-mono text-sm">/</code> stops us before a single
+          page is fetched. See{' '}
+          <Link href="/bot" className="underline underline-offset-4">
+            the CrawlableBot page
+          </Link>
+          .
         </p>
         <p>
           We only fetch content that is already publicly reachable without authentication.

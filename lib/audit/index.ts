@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { analysePage } from './extract';
-import { analyseRobots } from './robots';
+import { analyseRobots, isCrawlableBotOptedOut } from './robots';
 import { analyseLlmsTxt } from './llmstxt';
 import { discoverUrls, mapWithConcurrency } from './discover';
 import { gradeFor, invisibleShare, overallScore, readablePages, runChecks } from './scoring';
 import { generateAll } from './generators';
-import { assertPublicHost, normaliseUrl, toOrigin } from './fetcher';
+import { FetchError, assertPublicHost, normaliseUrl, toOrigin } from './fetcher';
 import { dedupeByUrl, dedupeUrls, normaliseForCrawl } from './url';
 import type { AuditResult, AuditSummary } from './types';
 
@@ -14,6 +14,7 @@ export { AI_CRAWLERS, VISIBILITY_CRITICAL_CRAWLERS, NON_RENDERING_CRAWLERS } fro
 export { prioritisedFindings } from './scoring';
 export { generateAll, robotsChangeSummary } from './generators';
 export { normaliseUrl, toOrigin, FetchError } from './fetcher';
+export { isCrawlableBotOptedOut, CRAWLABLE_BOT_TOKEN } from './robots';
 
 /** Pages fetched in parallel. Deliberately polite — this hits other people's servers. */
 const CRAWL_CONCURRENCY = 4;
@@ -86,6 +87,21 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
     analyseRobots(origin),
     analyseLlmsTxt(origin),
   ]);
+
+  /*
+   * The one robots.txt directive this crawler does obey.
+   *
+   * Checked here, before any page is fetched, so an opted-out site is never
+   * touched beyond the robots.txt read itself. The audit route turns this into
+   * a 403 and refunds the scan — an opt-out is not a failed audit, and nobody
+   * should pay for discovering one.
+   */
+  if (isCrawlableBotOptedOut(robots)) {
+    throw new FetchError(
+      `${new URL(origin).host} has opted out of Crawlable audits in its robots.txt.`,
+      'bot-opted-out',
+    );
+  }
 
   const entryUrl = normaliseForCrawl(entry);
 

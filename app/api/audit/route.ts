@@ -60,6 +60,8 @@ const FRIENDLY_ERROR: Record<string, string> = {
     'That site redirected too many times. Check for a redirect loop in your hosting configuration.',
   'unsupported-content':
     'That URL does not return a web page. Point us at an HTML page rather than a file download.',
+  'bot-opted-out':
+    'That site has blocked CrawlableBot in its robots.txt, so we will not crawl it. If it is your site, remove the CrawlableBot rule and try again.',
 };
 
 function friendly(code: string, fallback: string): string {
@@ -182,7 +184,11 @@ export async function POST(request: Request): Promise<Response> {
 
     if (error instanceof FetchError) {
       const status =
-        error.code === 'blocked-host' || error.code === 'invalid-url' ? 400 : 502;
+        error.code === 'bot-opted-out'
+          ? 403
+          : error.code === 'blocked-host' || error.code === 'invalid-url'
+            ? 400
+            : 502;
       return fail(
         error.code,
         `${friendly(error.code, error.message)} Your scan was not used.`,

@@ -67,7 +67,9 @@ export class FetchError extends Error {
       | 'timeout'
       | 'too-many-redirects'
       | 'network'
-      | 'unsupported-content',
+      | 'unsupported-content'
+      /** The site named CrawlableBot in robots.txt and disallowed it. */
+      | 'bot-opted-out',
   ) {
     super(message);
     this.name = 'FetchError';

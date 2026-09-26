@@ -33,6 +33,10 @@ const STATIC_ROUTES: readonly StaticRoute[] = [
 
   { path: '/contact', changeFrequency: 'monthly', priority: 0.8 },
 
+  // Indexed deliberately: a sysadmin who sees CrawlableBot in their logs may
+  // search for it rather than follow the URL in the user-agent string.
+  { path: '/bot', changeFrequency: 'yearly', priority: 0.5 },
+
   /*
    * Legal pages are indexed deliberately: a buyer checking whether a small
    * vendor is legitimate looks for these, and an absent refund policy reads as

@@ -4,6 +4,7 @@ import { Scanner } from '@/components/Scanner';
 import { Pricing } from '@/components/Pricing';
 import { AI_CRAWLERS, NON_RENDERING_CRAWLERS } from '@/lib/audit/crawlers';
 import { FAQS } from '@/content/faq';
+import { SEO_SUITE_PRICE_PROSE, SEO_SUITE_PRICE_RANGE } from '@/lib/benchmarks';
 import { serialiseJsonLd } from '@/lib/seo/schema';
 
 /*
@@ -224,12 +225,14 @@ export default function HomePage() {
                 This is not another AI visibility tracker
               </h2>
               <p className="mt-4 leading-relaxed ink-secondary">
-                The monitoring tools run prompts and report which brands got mentioned. Useful,
-                and priced accordingly — $95 to $500 a month, forever.
+                The established SEO suites — Ahrefs, Semrush and the AI visibility trackers
+                that followed them — charge {SEO_SUITE_PRICE_PROSE} a month on a recurring
+                subscription, and what you get for it is a report of what is broken.
               </p>
               <p className="mt-4 leading-relaxed ink-secondary">
-                They all assume the crawler can read your site. That assumption is the thing
-                worth checking first, and it is the one thing none of them check.
+                They also assume the crawler can read your site at all. That assumption is
+                the thing worth checking first, and it is the one thing none of them check —
+                nor do they hand you the files that fix it.
               </p>
             </div>
 
@@ -238,7 +241,7 @@ export default function HomePage() {
                 <thead>
                   <tr className="text-left text-xs uppercase tracking-wider ink-muted">
                     <th className="border-b px-5 py-3 font-medium">&nbsp;</th>
-                    <th className="border-b px-5 py-3 font-medium">Trackers</th>
+                    <th className="border-b px-5 py-3 font-medium">SEO suites</th>
                     <th className="border-b px-5 py-3 font-medium">Crawlable</th>
                   </tr>
                 </thead>
@@ -248,7 +251,11 @@ export default function HomePage() {
                     them="What AI says about you"
                     us="What AI can read of you"
                   />
-                  <ComparisonRow label="Price" them="$95–$500 / month" us="$29 once" />
+                  <ComparisonRow
+                    label="Price"
+                    them={`${SEO_SUITE_PRICE_RANGE} / month`}
+                    us="$29 once"
+                  />
                   <ComparisonRow
                     label="Output"
                     them="Dashboards and trends"
