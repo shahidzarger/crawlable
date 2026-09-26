@@ -1,9 +1,19 @@
 import type { PlanId } from '@/lib/db/types';
 
 export interface Plan {
+  /**
+   * Internal identifier, persisted on every licence row.
+   *
+   * These read oddly next to the display names now ('single' is Starter,
+   * 'pack' is Growth) and that is deliberate: the value is written into the
+   * database at purchase time, so renaming it would orphan every licence sold
+   * under the old name. The name customers see lives in `name`.
+   */
   id: PlanId;
   name: string;
-  /** Display price, e.g. "$39". Kept in step with priceUsd by tests/seo.test.ts. */
+  /** Short positioning line under the name. */
+  kicker: string;
+  /** Display price, e.g. "$29". Kept in step with priceUsd by tests/seo.test.ts. */
   price: string;
   /**
    * The same number, machine-readable, for schema.org Offer markup.
@@ -16,8 +26,19 @@ export interface Plan {
    */
   priceUsd: number;
   priceNote: string;
-  /** Audits granted. Null means unmetered. */
-  auditQuota: number | null;
+  /**
+   * Total scans the licence grants, counting the first audit.
+   *
+   * Starter sells "1 audit + 2 re-scans", which is 3 scans. Presenting it that
+   * way to customers and storing it as one number is the only way the two
+   * cannot drift: there is no separate re-scan budget to get out of step with
+   * the audit budget.
+   */
+  totalScansAllowed: number;
+  /** How many distinct domains the licence may register. */
+  domainSlots: number;
+  /** Days from purchase until the remaining scans expire. */
+  windowDays: number;
   recurring: boolean;
   tagline: string;
   features: string[];
@@ -28,9 +49,10 @@ export interface Plan {
 /**
  * The plan catalogue.
  *
- * `auditQuota` is the only field with teeth: it is what the webhook grants and
- * what spendCredit meters against, and it is read from here rather than from
- * any payment payload. Everything else is display copy.
+ * `totalScansAllowed`, `domainSlots` and `windowDays` are the fields with
+ * teeth: the webhook grants from here and the audit route meters against here,
+ * never against anything in a payment payload. A replayed or forged webhook
+ * therefore cannot grant more than a plan sells.
  *
  * `price` is DISPLAY ONLY. The amount actually charged comes from the Lemon
  * Squeezy variant, so changing a price here without changing it there shows
@@ -39,62 +61,69 @@ export interface Plan {
 export const PLANS: readonly Plan[] = [
   {
     id: 'single',
-    name: 'Single Audit',
-    price: '$39',
-    priceUsd: 39,
+    name: 'Starter',
+    kicker: 'Fix & Verify',
+    price: '$29',
+    priceUsd: 29,
     priceNote: 'one-time',
-    auditQuota: 1,
+    totalScansAllowed: 3,
+    domainSlots: 1,
+    windowDays: 30,
     recurring: false,
-    tagline: 'One site, fully audited, with the fix files.',
+    tagline: 'Ideal for solo founders launching a product.',
     features: [
-      'One full audit, up to 40 pages',
-      'Crawled as a non-rendering AI crawler sees it',
-      'AI crawler policy check across 15 bots',
-      'Complete fix kit: llms.txt, robots.txt, JSON-LD',
-      'FIXES.md prioritised by impact',
-      'Credit never expires',
+      '1 domain audit, up to 40 pages',
+      'Fix Kit .zip: robots.txt, sitemap.xml, llms.txt, schema.jsonld',
+      '2 verification re-scans included (30-day window)',
+      'Re-scan from your report for a before-and-after score',
+      'FIXES.md with deployment instructions',
     ],
     highlight: false,
     cta: 'Audit my site',
   },
   {
     id: 'pack',
-    name: 'Growth Pack',
-    price: '$89',
-    priceUsd: 89,
-    priceNote: 'one-time, 5 audits',
-    auditQuota: 5,
+    name: 'Growth',
+    kicker: 'Growth',
+    price: '$79',
+    priceUsd: 79,
+    priceNote: 'one-time, 3 domains',
+    totalScansAllowed: 10,
+    domainSlots: 3,
+    windowDays: 60,
     recurring: false,
-    tagline: 'Five audits at $17.80 each — staging, production and competitors.',
+    tagline: 'For serial founders and growing SaaS portfolios.',
     features: [
-      'Five full audits — $17.80 per audit',
-      'Audit staging, production and your competitors',
-      'Credits never expire, use them whenever',
-      'Re-run any site to show before and after',
-      'Share a report by link, no login needed',
-      'Priority email support',
+      'Up to 3 domains tracked',
+      '10 total scans across those domains (60-day window)',
+      'A complete Fix Kit for each of the 3 sites',
+      'Re-scan any of them to prove a fix landed, without spending a slot',
+      'Every Fix Kit re-downloadable from your dashboard',
     ],
     highlight: true,
-    cta: 'Get 5 audits',
+    cta: 'Get the Growth pack',
   },
   {
     id: 'agency',
     name: 'Agency Pro',
-    price: '$29',
-    priceUsd: 29,
-    priceNote: 'per month',
-    auditQuota: null,
-    recurring: true,
-    tagline: 'Three websites, re-audited as often as you like.',
+    kicker: 'Agency Pro',
+    price: '$199',
+    priceUsd: 199,
+    priceNote: 'one-time, 15 domains',
+    totalScansAllowed: 50,
+    domainSlots: 15,
+    windowDays: 60,
+    recurring: false,
+    tagline: 'For consultants, agencies, and web developers.',
     features: [
-      '3 active website slots with unlimited re-scans',
-      'Re-scan any slot to track GPTBot, ClaudeBot and PerplexityBot access',
-      'Download updated llms.txt and robots.txt kits anytime',
-      'Client-ready Fix Kits and health reports',
-      'Cancel anytime',
+      'Up to 15 domains tracked',
+      '50 total scans across the portfolio (60-day window)',
+      'A Fix Kit per client site, generated from that site\'s own crawl',
+      'Enough scans to audit a portfolio and verify every fix',
+      'Report links you can send straight to a client',
     ],
     highlight: false,
-    cta: 'Start monitoring',
+    cta: 'Audit my client sites',
   },
 ] as const;
 
@@ -104,4 +133,16 @@ export function planById(id: string): Plan | undefined {
 
 export function isPlanId(value: string): value is PlanId {
   return PLANS.some((plan) => plan.id === value);
+}
+
+/**
+ * Re-scans left after auditing every registered domain once.
+ *
+ * NOT totalScansAllowed - 1. That is only right for a single-domain plan:
+ * Growth's ten scans cover three first audits before any verification, so
+ * "9 re-scans included" overstates it by two. Copy that promises a number of
+ * re-scans must use this, or say "scans" and mean it.
+ */
+export function verificationScans(plan: Plan): number {
+  return Math.max(0, plan.totalScansAllowed - plan.domainSlots);
 }

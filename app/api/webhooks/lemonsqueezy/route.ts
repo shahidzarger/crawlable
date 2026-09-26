@@ -130,7 +130,23 @@ export async function POST(request: Request): Promise<Response> {
          * Squeezy buy link does not, and a purchase through one lands here
          * unresolvable — which is why raw buy links must never be published.
          */
-        const plan = resolvePlan(undefined, undefined, custom.plan);
+        /*
+         * Plan resolution, in order of reliability.
+         *
+         * 1. checkout metadata, when the purchase came through our own
+         *    checkout or one of the direct links in lib/checkout-links.ts;
+         * 2. the order_plans row written by order_created, which resolved the
+         *    plan from the VARIANT ID — the one signal Lemon Squeezy always
+         *    sends and nobody can mistype.
+         *
+         * The second is what makes a purchase through a bare buy link
+         * recoverable instead of orphaned.
+         */
+        const orderId = String(attributes.order_id ?? event.data.id);
+        const plan =
+          resolvePlan(undefined, undefined, custom.plan) ??
+          (await db.getOrderPlan(orderId));
+
         if (!plan) {
           // Logged at error with the key tail and order so the licence can be
           // provisioned by hand. Returning 200 stops Lemon Squeezy retrying a
@@ -153,8 +169,8 @@ export async function POST(request: Request): Promise<Response> {
           licenseKey: key,
           plan,
           email,
-          orderId: String(attributes.order_id ?? event.data.id),
-          status: attributes.status === 'inactive' ? 'active' : 'active',
+          orderId,
+          status: 'active',
         });
 
         const planRecord = planById(plan);
@@ -169,9 +185,21 @@ export async function POST(request: Request): Promise<Response> {
       }
 
       case 'order_created': {
-        // Orders arrive before or after license_key_created depending on the
-        // store's configuration. This branch records the order so support can
-        // look it up; the key itself is handled by license_key_created.
+        /*
+         * This is where the variant ID becomes a quota.
+         *
+         * Orders arrive before or after license_key_created depending on store
+         * configuration, and only this event carries first_order_item.
+         * variant_id. Resolving the plan here and writing it against the order
+         * means the key handler can always find it, whichever order the two
+         * events turn up in.
+         *
+         * The variant IDs themselves come from the existing
+         * LEMONSQUEEZY_VARIANT_SINGLE / _PACK / _AGENCY configuration. The
+         * quotas attached to each plan come from lib/plans.ts, never from this
+         * payload — a forged or replayed order therefore cannot grant more
+         * scans than the plan sells.
+         */
         const attributes = event.data.attributes as OrderAttributes;
         const plan = resolvePlan(
           attributes.first_order_item?.variant_id,
@@ -179,9 +207,29 @@ export async function POST(request: Request): Promise<Response> {
           custom.plan,
         );
 
+        const orderId = String(event.data.id);
+
+        if (plan) {
+          const db = await store();
+          await db.recordOrderPlan(orderId, plan);
+        } else {
+          console.error(
+            '[webhook] order_created with no resolvable plan. Check that ' +
+              'LEMONSQUEEZY_VARIANT_SINGLE / _PACK / _AGENCY match this store.',
+            {
+              orderId,
+              variantId: attributes.first_order_item?.variant_id,
+              productName: attributes.first_order_item?.product_name,
+            },
+          );
+        }
+
+        const granted = plan ? planById(plan) : undefined;
         console.info('[webhook] order_created', {
-          orderId: event.data.id,
+          orderId,
           plan,
+          scansGranted: granted?.totalScansAllowed,
+          domainSlots: granted?.domainSlots,
           status: attributes.status,
         });
 

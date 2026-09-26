@@ -61,9 +61,11 @@ export default function TermsPage() {
         <p>
           By submitting a URL you confirm that you own the site, or are authorised by its
           owner to have it crawled. Our crawler identifies itself honestly as{' '}
-          <code className="font-mono text-sm">CrawlableBot</code>, is rate-limited, and
-          obeys directives in the target site&apos;s{' '}
-          <code className="font-mono text-sm">robots.txt</code>.
+          <code className="font-mono text-sm">CrawlableBot</code> and is rate-limited.
+          Because the audit exists to measure what an AI crawler would receive, it fetches
+          the pages you nominate regardless of{' '}
+          <code className="font-mono text-sm">robots.txt</code> directives — which is
+          precisely why the authorisation above is required rather than optional.
         </p>
         <p>
           We only fetch content that is already publicly reachable without authentication.

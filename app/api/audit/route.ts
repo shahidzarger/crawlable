@@ -3,9 +3,15 @@ import { z } from 'zod';
 import { authenticateLicense, fail, ok, readJson } from '@/lib/api';
 import { store } from '@/lib/db';
 import { FetchError, PAGE_LIMITS, runAudit } from '@/lib/audit';
-import { remainingCredits, spendCredit } from '@/lib/licensing';
+import {
+  authoriseDomain,
+  domainSlotsForPlan,
+  isWindowClosed,
+  remainingScans,
+  spendScan,
+} from '@/lib/licensing';
 import { validateUrl } from '@/lib/scanner/validate-url';
-import { AGENCY_DOMAIN_SLOTS, normaliseDomain } from '@/lib/domains';
+import { normaliseDomain } from '@/lib/domains';
 import { auditReadyEmail } from '@/lib/email/templates';
 import { sendEmail } from '@/lib/email/send';
 
@@ -14,10 +20,14 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * Full site audit. Requires a license key and spends one credit.
+ * Full site audit. Requires a license key and spends one scan.
  *
- * The credit is spent before the crawl starts so that two concurrent requests
- * cannot both slip through on the last credit, and refunded if the crawl fails
+ * Every plan now meters the same way — a finite number of scans, spread over a
+ * finite number of domains, inside a window — so there is one path rather than
+ * the two the Agency subscription used to need.
+ *
+ * The scan is spent before the crawl starts so that two concurrent requests
+ * cannot both slip through on the last one, and refunded if the crawl fails
  * before producing a result.
  */
 
@@ -86,45 +96,45 @@ export async function POST(request: Request): Promise<Response> {
 
   const db = await store();
 
+  const domain = normaliseDomain(parsed.data.url);
+  if (!domain) {
+    return fail('invalid-url', friendly('invalid-url', 'Invalid URL.'), 400);
+  }
+
   /*
-   * Two authorisation models, decided by plan.
+   * Spend first, authorise second, refund on refusal.
    *
-   * Agency Pro sells a number of SITES, not a number of audits: re-auditing a
-   * registered domain is free and unlimited, which is the whole proposition.
-   * The one-time plans sell a number of AUDITS and burn a credit each time.
-   *
-   * The slot claim happens before the crawl for the same reason the credit
-   * debit does — two concurrent requests must not both take the last one.
+   * The other order looks more natural and is wrong: claiming a domain slot is
+   * a permanent commitment, so authorising first would let a customer who has
+   * run out of scans burn a slot on a site they are then told they cannot
+   * scan. Spending first risks nothing by comparison, because the scan is
+   * refundable and the refund path already exists for failed crawls.
    */
-  const isSlotPlan = license.plan === 'agency';
-  let credit: Awaited<ReturnType<typeof spendCredit>> | null = null;
+  const scan = await spendScan(keyHash);
+  if (!scan.allowed) {
+    return NextResponse.json(
+      {
+        code: isWindowClosed(license) ? 'WINDOW_CLOSED' : 'NO_SCANS_REMAINING',
+        error: scan.reason ?? 'No verification scans remaining.',
+        scansRemaining: scan.remaining ?? 0,
+        expiresAt: license.expiresAt,
+      },
+      { status: 402 },
+    );
+  }
 
-  if (isSlotPlan) {
-    const domain = normaliseDomain(parsed.data.url);
-    if (!domain) {
-      return fail('invalid-url', friendly('invalid-url', 'Invalid URL.'), 400);
-    }
-
-    const claim = await db.claimDomain(keyHash, domain, AGENCY_DOMAIN_SLOTS);
-
-    if (claim === 'limit-reached') {
-      return NextResponse.json(
-        {
-          code: 'DOMAIN_LIMIT_REACHED',
-          error:
-            `You have used all ${AGENCY_DOMAIN_SLOTS} domain slots included in Agency Pro. ` +
-            'You can re-audit your existing domains anytime, or purchase a Growth Pack ' +
-            'to audit additional websites.',
-          domains: await db.listDomains(keyHash),
-        },
-        { status: 403 },
-      );
-    }
-  } else {
-    credit = await spendCredit(keyHash);
-    if (!credit.allowed) {
-      return fail('no-credits', credit.reason ?? 'No audit credits remaining.', 402);
-    }
+  const authorised = await authoriseDomain(license, domain);
+  if (!authorised.allowed) {
+    await refundScan(keyHash);
+    return NextResponse.json(
+      {
+        code: authorised.code === 'slots-full' ? 'DOMAIN_LIMIT_REACHED' : 'DOMAIN_LOCKED',
+        error: authorised.reason,
+        domains: await db.listDomains(keyHash),
+        domainLimit: domainSlotsForPlan(license.plan),
+      },
+      { status: 403 },
+    );
   }
 
   try {
@@ -158,31 +168,24 @@ export async function POST(request: Request): Promise<Response> {
 
     return ok({
       audit: result,
-      creditsRemaining: credit?.remaining ?? null,
-      domains: isSlotPlan ? await db.listDomains(keyHash) : undefined,
+      scansRemaining: scan.remaining ?? 0,
+      domains: await db.listDomains(keyHash),
     });
   } catch (error) {
     /*
-     * Refund the credit — but only on the credit-burning plans.
-     *
-     * A slot plan spent nothing to refund. The slot stays claimed, which is
-     * deliberate: the customer chose that domain, and a failed first crawl
-     * should not quietly hand the slot back and let them register a fourth
-     * site. They can re-audit it as often as they like at no cost.
+     * Refund the scan. The domain slot, if one was claimed, stays claimed —
+     * the customer chose that site, and a failed first crawl should not
+     * quietly hand the slot back and let them register an extra one. Re-scans
+     * of a registered domain cost a scan but never a slot.
      */
-    if (!isSlotPlan) {
-      const refunded = await db.getLicense(keyHash);
-      if (refunded && refunded.auditQuota !== null && refunded.auditsUsed > 0) {
-        await db.upsertLicense({ ...refunded, auditsUsed: refunded.auditsUsed - 1 });
-      }
-    }
+    await refundScan(keyHash);
 
     if (error instanceof FetchError) {
       const status =
         error.code === 'blocked-host' || error.code === 'invalid-url' ? 400 : 502;
       return fail(
         error.code,
-        `${friendly(error.code, error.message)} Your credit was not used.`,
+        `${friendly(error.code, error.message)} Your scan was not used.`,
         status,
       );
     }
@@ -190,7 +193,7 @@ export async function POST(request: Request): Promise<Response> {
     console.error('[audit] unexpected failure', error);
     return fail(
       'audit-failed',
-      'The audit could not be completed and your credit was not used. Try again shortly.',
+      'The audit could not be completed and your scan was not used. Try again shortly.',
       500,
     );
   }
@@ -205,7 +208,7 @@ export async function GET(request: Request): Promise<Response> {
   const db = await store();
   const [audits, domains] = await Promise.all([
     db.listAudits(keyHash, 50),
-    license.plan === 'agency' ? db.listDomains(keyHash) : Promise.resolve([]),
+    db.listDomains(keyHash),
   ]);
 
   return ok({
@@ -214,15 +217,34 @@ export async function GET(request: Request): Promise<Response> {
       keyTail: license.keyTail,
       email: license.email,
       status: license.status,
-      auditQuota: license.auditQuota,
-      auditsUsed: license.auditsUsed,
-      creditsRemaining: remainingCredits(license),
+      targetDomain: license.targetDomain,
+      totalScansAllowed: license.totalScansAllowed,
+      scansUsed: license.scansUsed,
+      scansRemaining: remainingScans(license),
+      expiresAt: license.expiresAt,
+      windowClosed: isWindowClosed(license),
       brandName: license.brandName,
       brandColor: license.brandColor,
-      /** Slot allowance, or null on the credit-burning plans. */
-      domainLimit: license.plan === 'agency' ? AGENCY_DOMAIN_SLOTS : null,
+      domainLimit: domainSlotsForPlan(license.plan),
     },
     domains,
     audits,
   });
+}
+
+/**
+ * Hand a scan back.
+ *
+ * Read-modify-write rather than a conditional decrement, because the store
+ * interface has no decrement and adding one would mean adding a way to give
+ * scans back — a capability worth keeping narrow. The race window is real but
+ * benign: the worst outcome is a customer keeping a scan they should have
+ * spent, which is the direction to err in.
+ */
+async function refundScan(keyHash: string): Promise<void> {
+  const db = await store();
+  const record = await db.getLicense(keyHash);
+  if (record && record.scansUsed > 0) {
+    await db.upsertLicense({ ...record, scansUsed: record.scansUsed - 1 });
+  }
 }

@@ -25,11 +25,14 @@ interface LicenseInfo {
   keyTail: string;
   email: string;
   status: string;
-  auditQuota: number | null;
-  auditsUsed: number;
-  creditsRemaining: number | null;
-  /** Website slots on a subscription plan; null when the plan burns credits. */
-  domainLimit: number | null;
+  targetDomain: string | null;
+  totalScansAllowed: number;
+  scansUsed: number;
+  scansRemaining: number;
+  expiresAt: string | null;
+  windowClosed: boolean;
+  /** How many distinct domains this plan may register. */
+  domainLimit: number;
 }
 
 interface DomainSlot {
@@ -144,13 +147,16 @@ export function Dashboard() {
       });
 
       const payload = (await response.json()) as
-        | { audit: AuditResult; creditsRemaining: number | null }
+        | { audit: AuditResult; scansRemaining: number }
         | { error: string; code?: string };
 
       if (!response.ok || 'error' in payload) {
         // A refused fourth domain is an upsell, not a failure — it gets its
         // own panel with a purchase link rather than the generic error line.
-        if ('code' in payload && payload.code === 'DOMAIN_LIMIT_REACHED') {
+        if (
+          'code' in payload &&
+          (payload.code === 'DOMAIN_LIMIT_REACHED' || payload.code === 'DOMAIN_LOCKED')
+        ) {
           setDomainLimitHit(true);
         } else {
           setMessage('error' in payload ? payload.error : 'The audit failed.');
@@ -162,7 +168,7 @@ export function Dashboard() {
       setAuditUrl('');
       await load(licenseKey);
     } catch {
-      setMessage('Could not reach the server. Your credit was not used.');
+      setMessage('Could not reach the server. Your scan was not used.');
     } finally {
       setRunning(false);
       // In `finally`, so a thrown error or an early return cannot leave a slot
@@ -241,10 +247,23 @@ export function Dashboard() {
     );
   }
 
-  const remaining = license.creditsRemaining;
+  /*
+   * Every plan now meters the same two things: scans and domains. The
+   * dashboard used to branch on "slot plan vs credit plan"; there is only one
+   * shape left, which removes the branch that made this component hard to
+   * reason about.
+   */
+  const remaining = license.scansRemaining;
   const slotLimit = license.domainLimit;
-  const isSlotPlan = slotLimit !== null;
-  const slotsFree = isSlotPlan ? Math.max(0, slotLimit - domains.length) : 0;
+  const slotsFree = Math.max(0, slotLimit - domains.length);
+  const exhausted = remaining <= 0 || license.windowClosed;
+  const windowDaysLeft =
+    license.expiresAt === null
+      ? null
+      : Math.max(
+          0,
+          Math.ceil((Date.parse(license.expiresAt) - Date.now()) / 86_400_000),
+        );
   const packUrl = process.env.NEXT_PUBLIC_LS_BUY_PACK;
 
   return (
@@ -256,16 +275,17 @@ export function Dashboard() {
             {/* Read from the catalogue so a plan rename cannot drift out of sync here. */}
             {planById(license.plan)?.name ?? license.plan} · key ending {license.keyTail} ·{' '}
             {/*
-              A slot plan reports sites, not credits. Saying "unlimited audits"
-              here would be true but misleading: re-audits are unlimited, the
-              number of sites is not, and the limit is what a customer needs to
-              see before they hit it.
+              Both limits, always. A customer with scans left but no free slot
+              and a customer with a free slot but no scans left are stuck for
+              completely different reasons, and showing one number hides which.
             */}
-            {isSlotPlan
-              ? `${domains.length}/${slotLimit} monitored domains`
-              : remaining === null
-                ? 'unlimited audits'
-                : `${remaining} credit${remaining === 1 ? '' : 's'} left`}
+            {`${remaining} of ${license.totalScansAllowed} scans left`} ·{' '}
+            {`${domains.length}/${slotLimit} domain${slotLimit === 1 ? '' : 's'}`}
+            {windowDaysLeft !== null
+              ? license.windowClosed
+                ? ' · window closed'
+                : ` · ${windowDaysLeft} day${windowDaysLeft === 1 ? '' : 's'} left`
+              : ''}
           </p>
         </div>
         <button type="button" onClick={signOut} className="btn-ghost px-4 py-2 text-sm">
@@ -277,11 +297,9 @@ export function Dashboard() {
         <h2 className="font-semibold">Run an audit</h2>
         <p className="mt-1 text-sm ink-secondary">
           Up to 40 pages, sampled across your sitemap. Takes about a minute.
-          {isSlotPlan
-            ? slotsFree > 0
-              ? ` ${slotsFree} of your ${slotLimit} domain slots ${slotsFree === 1 ? 'is' : 'are'} still free.`
-              : ' All your domain slots are in use — re-audit any of them below at no cost.'
-            : ''}
+          {slotsFree > 0
+            ? ` ${slotsFree} of your ${slotLimit} domain slot${slotLimit === 1 ? '' : 's'} ${slotsFree === 1 ? 'is' : 'are'} still free.`
+            : ' All your domain slots are registered — re-scan any of them below to verify a fix.'}
         </p>
 
         <form onSubmit={runAudit} className="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -297,21 +315,23 @@ export function Dashboard() {
             onChange={(event) => setAuditUrl(event.target.value)}
             placeholder="clientdomain.com"
             className="field flex-1 px-4 py-3 text-sm outline-none"
-            disabled={running || remaining === 0}
+            disabled={running || exhausted}
           />
           <button
             type="submit"
             className="btn-primary px-6 py-3 text-sm"
-            disabled={running || auditUrl.trim().length === 0 || remaining === 0}
+            disabled={running || auditUrl.trim().length === 0 || exhausted}
           >
             {running ? 'Crawling…' : 'Run audit'}
           </button>
         </form>
 
-        {remaining === 0 ? (
+        {exhausted ? (
           <p className="mt-3 text-sm" style={{ color: 'var(--data-warn)' }}>
             <span aria-hidden>{SEVERITY.warning.icon} </span>
-            All credits on this license are used.{' '}
+            {license.windowClosed
+              ? `Your scan window closed${license.expiresAt ? ` on ${license.expiresAt.slice(0, 10)}` : ''}.`
+              : `All ${license.totalScansAllowed} scans on this license are used.`}{' '}
             <Link href="/#pricing" className="underline underline-offset-4">
               Add more
             </Link>
@@ -349,12 +369,12 @@ export function Dashboard() {
             <span aria-hidden style={{ color: 'var(--data-warn)' }}>
               {SEVERITY.warning.icon}{' '}
             </span>
-            All {slotLimit} domain slots are in use
+            All {slotLimit} domain slot{slotLimit === 1 ? '' : 's'} are in use
           </h2>
           <p className="mt-2 text-sm leading-relaxed ink-secondary">
-            Agency Pro covers {slotLimit} websites with unlimited re-audits. You can
-            re-audit any domain below as often as you like at no cost — or buy a Growth
-            Pack for five one-time audits on other sites. Credits never expire.
+            Your plan tracks {slotLimit} domain{slotLimit === 1 ? '' : 's'}. Re-scanning one
+            you have already registered costs a scan but never a slot, so verifying a fix is
+            always available — adding a new site is what needs more room.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             {packUrl ? (
@@ -380,17 +400,27 @@ export function Dashboard() {
         </section>
       ) : null}
 
-      {isSlotPlan ? (
+      {domains.length > 0 || slotLimit > 1 ? (
         <section className="surface-card p-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="font-semibold">
               Monitored Domains ({domains.length}/{slotLimit})
             </h2>
-            <p className="text-xs ink-muted">Unlimited re-audits on every slot</p>
+            <p className="text-xs ink-muted">
+              Re-scanning a registered domain costs a scan, never a slot
+            </p>
           </div>
 
           <ul className="mt-4 space-y-2">
-            {Array.from({ length: slotLimit }).map((_, index) => {
+            {/*
+              Registered domains, plus one empty row as an affordance — never
+              the full allowance. Agency Pro tracks 15 sites, and fifteen empty
+              rows is a wall of nothing that buries the two domains a customer
+              actually has.
+            */}
+            {Array.from({
+              length: Math.min(slotLimit, domains.length + (slotsFree > 0 ? 1 : 0)),
+            }).map((_, index) => {
               const slot = domains[index];
               return (
                 <li
@@ -417,11 +447,11 @@ export function Dashboard() {
                       <button
                         type="button"
                         onClick={(event) => void runAudit(event, slot.domain)}
-                        disabled={running}
+                        disabled={running || exhausted}
                         aria-busy={crawlingDomain === slot.domain}
                         className="btn-ghost shrink-0 px-4 py-2 text-xs"
                       >
-                        {crawlingDomain === slot.domain ? 'Crawling…' : 'Re-audit'}
+                        {crawlingDomain === slot.domain ? 'Crawling…' : 'Re-scan'}
                       </button>
                     </>
                   ) : (

@@ -173,8 +173,9 @@ export interface AuditResult {
 }
 
 export interface GeneratedFiles {
-  'llms.txt': string;
   'robots.txt': string;
+  'sitemap.xml': string;
+  'llms.txt': string;
   'schema.jsonld': string;
   'FIXES.md': string;
 }

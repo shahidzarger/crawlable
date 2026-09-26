@@ -3,7 +3,7 @@ import { Dashboard } from '@/components/Dashboard';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
-  description: 'Run audits, track credits and download your generated fix files.',
+  description: 'Run audits, track your verification scans and download your Fix Kits.',
   robots: { index: false, follow: false },
 };
 

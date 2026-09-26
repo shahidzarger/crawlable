@@ -190,14 +190,16 @@ describe('generateJsonLd', () => {
 });
 
 describe('generateAll', () => {
-  it('returns all four files with content', () => {
+  it('returns the complete five-file Fix Kit with content', () => {
     const files = generateAll(buildResult('User-agent: *\nAllow: /'));
 
+    // The pricing page promises these by name. A kit missing one is a refund.
     expect(Object.keys(files).sort()).toEqual([
       'FIXES.md',
       'llms.txt',
       'robots.txt',
       'schema.jsonld',
+      'sitemap.xml',
     ]);
 
     for (const [name, body] of Object.entries(files)) {
@@ -256,5 +258,31 @@ describe('programmatic SEO corpus', () => {
 
       expect(words, platform.slug).toBeGreaterThan(200);
     }
+  });
+});
+
+describe('robots.txt carry-over', () => {
+  it('keeps an allow-only wildcard group instead of widening it', () => {
+    /*
+     * The regression: a wildcard group with Allow rules and no Disallow rules
+     * used to fall through to a bare `Allow: /`, silently opening up paths the
+     * owner had scoped. A generated file that widens access is worse than one
+     * that does nothing.
+     */
+    const robots = generateRobotsTxt(
+      buildResult('User-agent: *\nAllow: /public/\nAllow: /docs/'),
+    );
+    expect(robots).toContain('Allow: /public/');
+    expect(robots).toContain('Allow: /docs/');
+  });
+
+  it('keeps existing disallow rules', () => {
+    const robots = generateRobotsTxt(buildResult('User-agent: *\nDisallow: /admin/'));
+    expect(robots).toContain('Disallow: /admin/');
+  });
+
+  it('declares a sitemap', () => {
+    const robots = generateRobotsTxt(buildResult('User-agent: *\nAllow: /'));
+    expect(robots).toMatch(/^Sitemap: https?:\/\/\S+\/sitemap\.xml$/m);
   });
 });

@@ -4,6 +4,7 @@ import type {
   DomainClaim,
   DomainSlot,
   LicenseRecord,
+  PlanId,
   Store,
 } from './types';
 
@@ -20,6 +21,7 @@ export class MemoryStore implements Store {
   private audits = new Map<string, AuditRecord>();
   private buckets = new Map<string, number[]>();
   private domains = new Map<string, DomainSlot[]>();
+  private orderPlans = new Map<string, PlanId>();
 
   async init(): Promise<void> {
     // Nothing to set up.
@@ -29,8 +31,12 @@ export class MemoryStore implements Store {
     const existing = this.licenses.get(record.keyHash);
     this.licenses.set(record.keyHash, {
       ...record,
-      // Never reset usage or resend a reminder when a webhook is redelivered.
-      auditsUsed: existing?.auditsUsed ?? record.auditsUsed,
+      // Never reset usage, unbind the domain, extend the window or resend a
+      // reminder when a webhook is redelivered. Mirrors the DO UPDATE SET list
+      // in the Postgres upsert, which omits the same four columns.
+      scansUsed: existing?.scansUsed ?? record.scansUsed,
+      targetDomain: existing?.targetDomain ?? record.targetDomain,
+      expiresAt: existing?.expiresAt ?? record.expiresAt,
       nudgedAt: existing?.nudgedAt ?? record.nudgedAt,
       createdAt: existing?.createdAt ?? record.createdAt,
     });
@@ -69,14 +75,34 @@ export class MemoryStore implements Store {
     record.updatedAt = new Date().toISOString();
   }
 
-  async consumeCredit(keyHash: string): Promise<boolean> {
+  async consumeScan(keyHash: string): Promise<boolean> {
     const record = this.licenses.get(keyHash);
     if (!record || record.status !== 'active') return false;
-    if (record.auditQuota === null) return true;
-    if (record.auditsUsed >= record.auditQuota) return false;
-    record.auditsUsed += 1;
+    if (record.scansUsed >= record.totalScansAllowed) return false;
+    if (record.expiresAt !== null && Date.parse(record.expiresAt) <= Date.now()) {
+      return false;
+    }
+    record.scansUsed += 1;
     record.updatedAt = new Date().toISOString();
     return true;
+  }
+
+  async bindTargetDomain(keyHash: string, domain: string): Promise<string> {
+    const record = this.licenses.get(keyHash);
+    if (!record) return domain;
+    if (record.targetDomain === null) {
+      record.targetDomain = domain;
+      record.updatedAt = new Date().toISOString();
+    }
+    return record.targetDomain;
+  }
+
+  async recordOrderPlan(orderId: string, plan: PlanId): Promise<void> {
+    this.orderPlans.set(orderId, plan);
+  }
+
+  async getOrderPlan(orderId: string): Promise<PlanId | null> {
+    return this.orderPlans.get(orderId) ?? null;
   }
 
   async listDomains(keyHash: string): Promise<DomainSlot[]> {
@@ -118,7 +144,7 @@ export class MemoryStore implements Store {
       .filter(
         (record) =>
           record.status === 'active' &&
-          record.auditsUsed === 0 &&
+          record.scansUsed === 0 &&
           record.nudgedAt === null &&
           Date.parse(record.createdAt) < cutoff,
       )

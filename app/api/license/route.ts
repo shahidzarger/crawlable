@@ -1,5 +1,5 @@
 import { authenticateLicense, enforceRateLimit, ok } from '@/lib/api';
-import { remainingCredits } from '@/lib/licensing';
+import { isWindowClosed, remainingScans } from '@/lib/licensing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,9 +27,12 @@ export async function POST(request: Request): Promise<Response> {
       plan: license.plan,
       keyTail: license.keyTail,
       status: license.status,
-      auditQuota: license.auditQuota,
-      auditsUsed: license.auditsUsed,
-      creditsRemaining: remainingCredits(license),
+      targetDomain: license.targetDomain,
+      totalScansAllowed: license.totalScansAllowed,
+      scansUsed: license.scansUsed,
+      scansRemaining: remainingScans(license),
+      expiresAt: license.expiresAt,
+      windowClosed: isWindowClosed(license),
       brandName: license.brandName,
       brandColor: license.brandColor,
     },

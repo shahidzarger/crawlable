@@ -9,6 +9,7 @@ import { FindingList } from '@/components/report/FindingList';
 import { CrawlerMatrix } from '@/components/report/CrawlerMatrix';
 import { PageTable } from '@/components/report/PageTable';
 import { FixKitDownloads } from '@/components/report/FixKitDownloads';
+import { VerifyRescan } from '@/components/report/VerifyRescan';
 import { ReportActionBar } from '@/components/report/ReportActionBar';
 
 export const dynamic = 'force-dynamic';
@@ -98,7 +99,14 @@ export default async function AuditReportPage({
             </Link>
           </section>
         ) : (
-          <FixKitDownloads auditId={record.id} siteUrl={result.siteUrl} />
+          <>
+            <FixKitDownloads auditId={record.id} siteUrl={result.siteUrl} />
+            {/*
+              Below the Fix Kit on purpose: the sequence the product sells is
+              download, deploy, verify, and the page should read in that order.
+            */}
+            <VerifyRescan siteUrl={result.siteUrl} currentScore={result.score} />
+          </>
         )}
       </div>
     </div>

@@ -206,17 +206,29 @@ describe('siteSchema', () => {
     }
   });
 
-  it('marks the recurring plan with a billing period', () => {
+  it('marks any recurring plan with a billing period', () => {
     const app = node('SoftwareApplication');
     const offers = app.offers as Array<Record<string, unknown>>;
     const recurring = PLANS.filter((plan) => plan.recurring);
 
-    expect(recurring.length).toBeGreaterThan(0);
+    // The catalogue is all one-time purchases today, so this loop may not run.
+    // It stays because the failure it guards is silent: a $29/month offer with
+    // no period reads as a one-off $29 in every surface that renders it.
     for (const plan of recurring) {
       const offer = offers.find((entry) => entry.name === plan.name);
       const spec = offer?.priceSpecification as Record<string, unknown> | undefined;
-      // Without this, $29/month markup reads as a one-off $29.
       expect(spec?.unitCode, plan.name).toBe('MON');
+    }
+  });
+
+  it('marks one-time plans as one-time purchases', () => {
+    const app = node('SoftwareApplication');
+    const offers = app.offers as Array<Record<string, unknown>>;
+
+    for (const plan of PLANS.filter((candidate) => !candidate.recurring)) {
+      const offer = offers.find((entry) => entry.name === plan.name);
+      expect(offer?.category, plan.name).toBe('one-time purchase');
+      expect(offer?.priceSpecification, plan.name).toBeUndefined();
     }
   });
 

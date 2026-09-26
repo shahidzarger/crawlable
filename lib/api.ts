@@ -53,7 +53,7 @@ export async function enforceRateLimit(
 
   return NextResponse.json(
     {
-      error: `Too many requests. Try again in a few minutes, or run unlimited audits with a license.`,
+      error: `Too many requests. Try again in a few minutes, or run a full audit with a license.`,
       code: 'rate-limited',
     },
     { status: 429, headers: { 'Retry-After': String(windowSeconds) } },

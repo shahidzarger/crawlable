@@ -68,24 +68,26 @@ export default function HomePage() {
               </p>
 
               <h1 className="mt-5 text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.15rem]">
-                <span className="block">Your site looks fine.</span>
+                <span className="block">Is your SaaS invisible</span>
                 <span className="block" style={{ color: 'var(--accent)' }}>
-                  AI can&apos;t read it.
+                  to AI search engines?
                 </span>
               </h1>
 
               <p className="mt-5 max-w-xl text-lg leading-relaxed ink-secondary">
-                GPTBot, ClaudeBot and PerplexityBot fetch your raw HTML and never execute a
-                line of your JavaScript. If your content arrives after hydration, it does not
-                exist as far as they are concerned — and nobody tells you.
-              </p>
-
-              <p className="mt-4 max-w-xl leading-relaxed ink-secondary">
-                Crawlable measures exactly how much of your site they can read, then generates
-                the files that fix it.
+                Traditional SEO is only half the battle. Crawlable diagnoses raw-HTML crawler
+                bottlenecks, generates ready-to-deploy Fix Kits (
+                <code className="font-mono text-base">robots.txt</code>,{' '}
+                <code className="font-mono text-base">sitemap.xml</code>,{' '}
+                <code className="font-mono text-base">schema.jsonld</code>,{' '}
+                <code className="font-mono text-base">llms.txt</code>), and re-scans your site
+                to verify your fixes.
               </p>
 
               <div className="mt-8 max-w-xl">
+                <p className="mb-3 text-sm ink-secondary">
+                  Enter your domain to run a free diagnostic preview
+                </p>
                 <Scanner />
               </div>
             </div>
@@ -101,7 +103,7 @@ export default function HomePage() {
       <section className="mx-auto max-w-6xl px-4 py-20">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Why this is invisible to you
+            Audit, patch, verify
           </h2>
           <p className="mt-4 text-lg leading-relaxed ink-secondary">
             Every tool you already use renders JavaScript before it looks. Your browser does.
@@ -114,19 +116,102 @@ export default function HomePage() {
         <div className="mt-12 grid gap-5 md:grid-cols-3">
           <Card
             step="01"
-            title="We fetch like a bot, not a browser"
-            body="One HTTP request, no JavaScript engine, no hydration. Exactly what GPTBot gets, measured in words rather than opinions."
+            title="Deep diagnostic crawl"
+            body="Up to 40 pages fetched the way a non-rendering crawler fetches them — one HTTP request, no JavaScript engine. We audit crawler directives, bot permissions, structured schema and hydration dependencies, and score what actually survives."
           />
           <Card
             step="02"
-            title="We score what survives"
-            body="Readable words, text-to-markup ratio, empty framework shells, heading structure, structured data, and which crawlers your robots.txt actually lets in."
+            title="Instant code patches"
+            body="Download a drop-in .zip: robots.txt with retrieval bots separated from training bots, a sitemap.xml built from your verified 200s, llms.txt written from your real pages, and a JSON-LD entity graph built from your site's real name, URL and description."
           />
           <Card
             step="03"
-            title="We hand you the fix"
-            body="A generated llms.txt built from your real pages, a robots.txt that keeps your existing rules while unblocking retrieval crawlers, and the JSON-LD your pages are missing."
+            title="Verification re-scan"
+            body="Deploy the files, press re-scan with the verification scans included in your plan, and watch the readiness score move. A re-scan that shows no change says so plainly — that is the point of measuring twice."
           />
+        </div>
+      </section>
+
+      {/* Dual optimisation: SEO and AEO */}
+      <section className="border-t">
+        <div className="mx-auto max-w-6xl px-4 py-20">
+          <div className="max-w-2xl">
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              Why both SEO and AEO?
+            </h2>
+            <p className="mt-4 text-lg leading-relaxed ink-secondary">
+              They are not the same job. Google renders your JavaScript and has crawled you
+              for years; the answer engines mostly do neither. Optimising for one and
+              assuming it covers the other is how a site ranks perfectly well and still never
+              gets cited.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-6 lg:grid-cols-2">
+            <div className="surface-card p-6 sm:p-8">
+              <h3 className="text-xl font-semibold tracking-tight">For Google and Bing</h3>
+              <p className="mt-2 text-sm leading-relaxed ink-secondary">
+                The classic technical layer, still worth getting right.
+              </p>
+              <ul className="mt-5 space-y-3 text-sm">
+                <Point>
+                  <strong>A sitemap.xml you can start from.</strong> We read your existing
+                  sitemap to choose which pages to crawl, then generate valid sitemaps.org
+                  XML from the URLs that came back 200.
+                </Point>
+                <Point>
+                  <strong>Canonical hygiene.</strong> Trailing-slash variants and tracking
+                  parameters split one page into several in an index. We collapse them before
+                  crawling, so your score and your generated sitemap count each page once.
+                </Point>
+                <Point>
+                  <strong>JSON-LD schema parsing.</strong> Every structured-data block is
+                  parsed and validated rather than counted, because malformed JSON-LD is
+                  indistinguishable from none at all.
+                </Point>
+              </ul>
+            </div>
+
+            <div
+              className="surface-card p-6 sm:p-8"
+              style={{ borderColor: 'var(--accent)' }}
+            >
+              <h3 className="text-xl font-semibold tracking-tight">
+                For AI answer engines
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed ink-secondary">
+                Perplexity, ChatGPT Search and Claude — where the rules are different.
+              </p>
+              <ul className="mt-5 space-y-3 text-sm">
+                <Point>
+                  <strong>Whitelist the retrieval bots.</strong>{' '}
+                  <code className="font-mono text-xs">OAI-SearchBot</code>,{' '}
+                  <code className="font-mono text-xs">PerplexityBot</code> and{' '}
+                  <code className="font-mono text-xs">Claude-SearchBot</code> fetch pages to
+                  answer a question someone is asking right now. Blocking them removes you
+                  from the answer.
+                </Point>
+                <Point>
+                  <strong>Separate them from the training bots.</strong>{' '}
+                  <code className="font-mono text-xs">GPTBot</code> and{' '}
+                  <code className="font-mono text-xs">Google-Extended</code> are a
+                  content-licensing decision with no effect on visibility. Most robots.txt
+                  files block all of them together, by accident.
+                </Point>
+                <Point>
+                  <strong>Serve readable raw HTML.</strong>{' '}
+                  {NON_RENDERING_CRAWLERS.length} of the {AI_CRAWLERS.length} crawlers we
+                  track never run your JavaScript. Content that arrives after hydration does
+                  not exist to them.
+                </Point>
+                <Point>
+                  <strong>Deploy llms.txt.</strong> A short Markdown map of what your site is
+                  and where its important pages are, written for a context window rather than
+                  a search index.
+                </Point>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -163,7 +248,7 @@ export default function HomePage() {
                     them="What AI says about you"
                     us="What AI can read of you"
                   />
-                  <ComparisonRow label="Price" them="$95–$500 / month" us="$39 once" />
+                  <ComparisonRow label="Price" them="$95–$500 / month" us="$29 once" />
                   <ComparisonRow
                     label="Output"
                     them="Dashboards and trends"
@@ -184,24 +269,33 @@ export default function HomePage() {
       {/* What you get */}
       <section className="mx-auto max-w-6xl px-4 py-20">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          What lands in your inbox
+          The Fix Kit
         </h2>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <Deliverable
-            file="llms.txt"
-            body="Built from your actual page titles, descriptions and sections — not a blank template. Grouped into docs, products, blog and the rest."
-          />
+        <p className="mt-4 max-w-2xl text-lg leading-relaxed ink-secondary">
+          Five files in a .zip, built from your own crawl rather than a template. Four are
+          drop-in; schema.jsonld leaves two social handles and a search URL for you to fill
+          in. FIXES.md says where each one belongs.
+        </p>
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <Deliverable
             file="robots.txt"
-            body="Explicit Allow groups for the 8 retrieval crawlers, your existing wildcard rules carried over untouched, and a Sitemap directive."
+            body="Retrieval crawlers allowed explicitly, training crawlers listed separately so blocking them stays a licensing decision rather than an accident. Your existing wildcard Disallow rules are carried over, with a Sitemap directive appended."
+          />
+          <Deliverable
+            file="sitemap.xml"
+            body="Valid sitemaps.org XML built only from canonical URLs the crawl confirmed returning 200 — no redirects, no 404s, no tracking parameters. It covers the pages this audit crawled, so a larger site gets a correct template to extend rather than a replacement sitemap."
+          />
+          <Deliverable
+            file="llms.txt"
+            body="Built from your actual page titles, descriptions and sections — not a blank template. Grouped into docs, products, blog and the rest, sized for a context window."
           />
           <Deliverable
             file="schema.jsonld"
-            body="Organization, WebSite and BreadcrumbList blocks filled in with your real name, URL and description. Paste and ship."
+            body="An entity graph: Organization and WebSite with SearchAction, plus BreadcrumbList when your site has nested pages — filled in with your real name, URL and description, with placement instructions inline."
           />
           <Deliverable
             file="FIXES.md"
-            body="Every finding ordered by what it costs you, with the affected URLs listed and a concrete remedy per item."
+            body="Every finding ordered by what it costs you, with the affected URLs listed, a concrete remedy per item, and the deployment order for the four files above."
           />
         </div>
       </section>
@@ -238,6 +332,17 @@ export default function HomePage() {
         </div>
       </section>
     </>
+  );
+}
+
+function Point({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex gap-3 leading-relaxed ink-secondary">
+      <span aria-hidden className="mt-1.5 shrink-0" style={{ color: 'var(--accent)' }}>
+        →
+      </span>
+      <span>{children}</span>
+    </li>
   );
 }
 

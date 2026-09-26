@@ -1,0 +1,153 @@
+import type { AuditResult, PageAnalysis } from './types';
+import { canonicalKey, safeCanonicalKey } from './url';
+
+/**
+ * sitemap.xml generator for the Fix Kit.
+ *
+ * What this file can honestly claim is narrower than "your sitemap", and the
+ * generated XML says so in a comment at the top. An audit crawls a sample of
+ * up to 40 pages; a site with 500 pages gets a sitemap listing 40 of them. A
+ * customer who replaced their real sitemap with this one would be telling
+ * Google about *fewer* pages than before, which is the opposite of the outcome
+ * they bought. So the file is framed as a starting point and a template, the
+ * header states the coverage in plain words, and FIXES.md repeats it.
+ *
+ * Everything listed is a URL the crawler actually fetched and that actually
+ * returned 200, because a sitemap full of 404s and redirects is worse than no
+ * sitemap: Search Console reports it as an error state and the trust applies
+ * to the whole file, not just the bad rows.
+ */
+
+/** Paths that exist for humans and lawyers, not for ranking. */
+const UTILITY_PATTERN =
+  /(^|\/)(terms|privacy|refunds?|legal|cookies?|imprint|disclaimer|accessibility|contact|support|login|log-in|signin|sign-in|signup|sign-up|register|account|cart|checkout|thank-you|404)(\/|$)/i;
+
+/** Paths that carry the commercial weight of a SaaS site. */
+const CORE_PATTERN =
+  /(^|\/)(pricing|plans|product|products|features|solutions|platform|use-cases?|integrations?|docs?|documentation|blog|guides?|customers|case-stud(y|ies))(\/|$)/i;
+
+/**
+ * Query shapes that mark a URL as a duplicate of a prettier one.
+ *
+ * `?p=` is WordPress's pre-permalink form and almost always 301s to the slug;
+ * listing it alongside the slug asks Google to pick between two addresses for
+ * one page. Tracking parameters are already gone by this point — canonicalKey
+ * strips them — so this only has to catch what survives that.
+ */
+const DUPLICATE_QUERY = /[?&](p|page_id|cat|preview|replytocom)=/i;
+
+export interface SitemapEntry {
+  loc: string;
+  priority: string;
+}
+
+/** XML text escaping. A raw & in a URL makes the whole document invalid. */
+export function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+/** Today in the W3C date form sitemaps.org asks for. */
+export function isoDate(now: Date = new Date()): string {
+  return now.toISOString().slice(0, 10);
+}
+
+function priorityFor(url: URL, origin: string): string {
+  const path = url.pathname.replace(/\/+$/, '');
+  if (path === '' || url.toString() === origin || url.toString() === `${origin}/`) {
+    return '1.0';
+  }
+  if (UTILITY_PATTERN.test(path)) return '0.5';
+  if (CORE_PATTERN.test(path)) return '0.8';
+  // An unrecognised content page is worth more than a legal page and less than
+  // the home page. 0.8 is the honest default rather than inventing a fourth
+  // tier the spec does not have.
+  return '0.8';
+}
+
+/**
+ * Select the URLs that belong in a sitemap.
+ *
+ * Exported separately from the XML so the rules can be tested as rules rather
+ * than by matching strings in a document.
+ */
+export function sitemapEntries(result: AuditResult): SitemapEntry[] {
+  const origin = new URL(result.siteUrl).origin;
+  const seen = new Set<string>();
+  const entries: SitemapEntry[] = [];
+
+  for (const page of result.pages as PageAnalysis[]) {
+    // 200 only. A redirect never appears here — page.url is the post-redirect
+    // URL and page.status its final status — but errors and 4xx/5xx do.
+    if (page.status !== 200) continue;
+
+    const key = safeCanonicalKey(page.url);
+    if (key === null || seen.has(key)) continue;
+
+    let url: URL;
+    try {
+      url = new URL(key);
+    } catch {
+      continue;
+    }
+
+    // Same-origin only: a sitemap may not list URLs outside its own host, and
+    // Search Console rejects the whole file when one row breaks that rule.
+    if (url.origin !== origin) continue;
+    if (DUPLICATE_QUERY.test(url.search)) continue;
+
+    seen.add(key);
+    entries.push({ loc: url.toString(), priority: priorityFor(url, origin) });
+  }
+
+  /*
+   * Home page first, then by priority, then alphabetically. Order carries no
+   * meaning to a crawler, but a human opens this file before submitting it and
+   * a jumbled list reads as machine spew rather than something considered.
+   */
+  return entries.sort((a, b) => {
+    if (a.priority !== b.priority) return Number(b.priority) - Number(a.priority);
+    return a.loc.localeCompare(b.loc);
+  });
+}
+
+export function generateSitemapXml(result: AuditResult, now: Date = new Date()): string {
+  const entries = sitemapEntries(result);
+  const lastmod = isoDate(now);
+  const host = new URL(result.siteUrl).host;
+
+  const header = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!--',
+    `  sitemap.xml for ${host} — generated by Crawlable on ${lastmod}.`,
+    '',
+    `  This lists the ${entries.length} page${entries.length === 1 ? '' : 's'} the audit crawled and`,
+    '  confirmed returning HTTP 200. If your site has more pages than that, this',
+    '  file is a STARTING POINT, not a replacement for a complete sitemap —',
+    '  submitting it as-is would tell Google about fewer pages than it already',
+    '  knows. Add your remaining URLs, or generate the full list from your CMS',
+    '  and use this file for its structure and priorities.',
+    '',
+    '  lastmod is the audit date. Set it per URL to the date that page actually',
+    '  changed once you wire this into your build — a sitemap where every page',
+    '  claims to have changed today is one search engines learn to ignore.',
+    '-->',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+  ];
+
+  const body = entries.map((entry) =>
+    [
+      '  <url>',
+      `    <loc>${escapeXml(entry.loc)}</loc>`,
+      `    <lastmod>${lastmod}</lastmod>`,
+      `    <priority>${entry.priority}</priority>`,
+      '  </url>',
+    ].join('\n'),
+  );
+
+  return [...header, ...body, '</urlset>', ''].join('\n');
+}

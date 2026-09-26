@@ -15,8 +15,9 @@ export const dynamic = 'force-dynamic';
  */
 
 const CONTENT_TYPES: Record<keyof GeneratedFiles, string> = {
-  'llms.txt': 'text/markdown; charset=utf-8',
   'robots.txt': 'text/plain; charset=utf-8',
+  'sitemap.xml': 'application/xml; charset=utf-8',
+  'llms.txt': 'text/markdown; charset=utf-8',
   'schema.jsonld': 'application/ld+json; charset=utf-8',
   'FIXES.md': 'text/markdown; charset=utf-8',
 };

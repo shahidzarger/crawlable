@@ -134,6 +134,11 @@ export function Pricing() {
             ) : null}
 
             <h3 className="font-semibold">{plan.name}</h3>
+            {plan.kicker !== plan.name ? (
+              <p className="mt-0.5 text-xs uppercase tracking-wider ink-muted">
+                {plan.kicker}
+              </p>
+            ) : null}
             <div className="mt-2 flex items-baseline gap-1.5">
               <span className="text-4xl font-semibold tracking-tight">{plan.price}</span>
               <span className="text-sm ink-muted">{plan.priceNote}</span>

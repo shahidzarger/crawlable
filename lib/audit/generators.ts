@@ -7,6 +7,7 @@ import type {
   PageAnalysis,
   RobotsAnalysis,
 } from './types';
+import { generateSitemapXml } from './sitemap';
 
 /**
  * Fix-file generation.
@@ -198,10 +199,22 @@ export function generateRobotsTxt(result: AuditResult): string {
   const wildcard = robots.groups.find((group) =>
     group.userAgents.some((agent) => agent.trim() === '*'),
   );
-  if (wildcard && wildcard.disallow.length > 0) {
+  /*
+   * Carry over the wildcard group whenever it has ANY rules.
+   *
+   * This used to require a non-empty disallow list, which silently dropped the
+   * Allow rules of a site whose wildcard group contained only Allow lines —
+   * replacing them with a bare `Allow: /`. That is a widening, and a generated
+   * file that quietly opens up paths the owner scoped is the one mistake this
+   * generator must never make.
+   */
+  const carried = wildcard
+    ? [...wildcard.disallow.map((path) => `Disallow: ${path}`), ...wildcard.allow.map((path) => `Allow: ${path}`)]
+    : [];
+
+  if (carried.length > 0) {
     lines.push('# Carried over from your existing robots.txt:');
-    for (const path of wildcard.disallow) lines.push(`Disallow: ${path}`);
-    for (const path of wildcard.allow) lines.push(`Allow: ${path}`);
+    lines.push(...carried);
   } else {
     lines.push('Allow: /');
   }
@@ -355,13 +368,36 @@ export function generateFixesMarkdown(result: AuditResult): string {
   lines.push(
     '---',
     '',
-    '## Files included with this audit',
+    '## Fix Kit — what to deploy, and where',
     '',
     '| File | Where it goes |',
     '| --- | --- |',
-    '| `llms.txt` | Site root, served as `text/markdown` or `text/plain` at `/llms.txt` |',
     '| `robots.txt` | Site root at `/robots.txt` — review the carried-over rules before replacing |',
-    '| `schema.jsonld` | Split into `<script type="application/ld+json">` tags as noted in the file |',
+    '| `sitemap.xml` | Site root at `/sitemap.xml`, then submit in Google Search Console |',
+    '| `llms.txt` | Site root, served as `text/markdown` or `text/plain` at `/llms.txt` |',
+    '| `schema.jsonld` | Split into `<script type="application/ld+json">` tags in your `<head>` |',
+    '',
+    '### Deployment order',
+    '',
+    '1. **`robots.txt` first.** Everything else is pointless while a crawler is blocked.',
+    '   Retrieval bots (`OAI-SearchBot`, `PerplexityBot`, `Claude-SearchBot`) are allowed',
+    '   explicitly; training bots (`GPTBot`, `Google-Extended`) are listed separately so',
+    '   you can make that call on licensing grounds rather than by accident.',
+    '2. **`sitemap.xml`** to the site root. Read the comment at the top of the file first:',
+    `   it lists the ${result.pagesAudited} pages this audit crawled and verified as HTTP 200, so if your`,
+    '   site is larger, treat it as a template and add the rest rather than replacing a',
+    '   complete sitemap with a partial one.',
+    '3. **`schema.jsonld`** into your site-wide layout. Replace every `REPLACE-WITH` value',
+    '   before shipping — placeholder social handles in production markup look worse than',
+    '   no markup at all.',
+    '4. **`llms.txt`** to the site root. No framework configuration needed; it is a static',
+    '   file that agents fetch directly.',
+    '',
+    '### Then verify',
+    '',
+    'Deploy all four, then re-scan this domain from your dashboard. The report will show a',
+    'before-and-after score so you can see which fixes actually landed. A re-scan uses one',
+    'of the verification scans included with your plan.',
     '',
     '## How the score is calculated',
     '',
@@ -383,8 +419,9 @@ export function generateFixesMarkdown(result: AuditResult): string {
 
 export function generateAll(result: AuditResult): GeneratedFiles {
   return {
-    'llms.txt': generateLlmsTxt(result),
     'robots.txt': generateRobotsTxt(result),
+    'sitemap.xml': generateSitemapXml(result),
+    'llms.txt': generateLlmsTxt(result),
     'schema.jsonld': generateJsonLd(result),
     'FIXES.md': generateFixesMarkdown(result),
   };

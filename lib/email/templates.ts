@@ -41,7 +41,7 @@ ${body}
 </td></tr>
 <tr><td style="padding:18px 28px;background:#fafbfc;border-top:1px solid #e4e6ea;color:#6b7689;font-size:12px;line-height:1.5;">
 Crawlable &middot; <a href="${siteUrl()}" style="color:#6b7689;">${siteUrl().replace(/^https?:\/\//, '')}</a><br>
-You are receiving this because you bought or ran an audit. <a href="${siteUrl()}/unsubscribe" style="color:#6b7689;">Unsubscribe</a>.
+You are receiving this because you bought or ran an audit. Reply to this email if you would rather not receive them.
 </td></tr>
 </table>
 </td></tr>
@@ -64,8 +64,10 @@ export function purchaseEmail(params: {
 }): EmailContent {
   const { licenseKey, plan } = params;
   const dashboard = `${siteUrl()}/dashboard`;
+  const scans = plan.totalScansAllowed;
   const quota =
-    plan.auditQuota === null ? 'Unlimited audits' : `${plan.auditQuota} audit${plan.auditQuota === 1 ? '' : 's'}`;
+    `${scans} scan${scans === 1 ? '' : 's'} across ` +
+    `${plan.domainSlots} domain${plan.domainSlots === 1 ? '' : 's'}`;
 
   const html = shell(
     `<p style="margin:0 0 16px;">Your <strong>${plan.name}</strong> is active. ${quota}, ready to run.</p>
@@ -73,7 +75,8 @@ export function purchaseEmail(params: {
 <div style="background:#f4f5f7;border:1px solid #e4e6ea;border-radius:8px;padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;word-break:break-all;color:${INK};">${licenseKey}</div>
 ${button(dashboard, 'Run your first audit')}
 <p style="margin:0 0 12px;"><strong>What happens next.</strong> Paste the key into the dashboard, enter a site, and the audit crawls up to 40 pages the way a non-rendering AI crawler does. It takes about a minute.</p>
-<p style="margin:0 0 12px;">You get back a prioritised fix list plus three files to paste: <code style="background:#f4f5f7;padding:2px 5px;border-radius:4px;">llms.txt</code>, a rewritten <code style="background:#f4f5f7;padding:2px 5px;border-radius:4px;">robots.txt</code>, and the JSON-LD your pages are missing.</p>
+<p style="margin:0 0 12px;">You get back a prioritised fix list plus a Fix Kit .zip: <code style="background:#f4f5f7;padding:2px 5px;border-radius:4px;">robots.txt</code>, <code style="background:#f4f5f7;padding:2px 5px;border-radius:4px;">sitemap.xml</code>, <code style="background:#f4f5f7;padding:2px 5px;border-radius:4px;">llms.txt</code>, <code style="background:#f4f5f7;padding:2px 5px;border-radius:4px;">schema.jsonld</code> and a FIXES.md telling you where each one goes.</p>
+<p style="margin:0 0 12px;"><strong>Then prove it worked.</strong> Deploy the files and press Re-Scan from your report for a before-and-after score. Your ${scans} scans cover both first audits and re-scans across ${plan.domainSlots} domain${plan.domainSlots === 1 ? '' : 's'}, and they are good for ${plan.windowDays} days.</p>
 <p style="margin:0;color:#6b7689;font-size:13px;">Keep this email — it is the only copy of your key we send.</p>`,
     `Your Crawlable license key is inside. ${quota}.`,
   );
@@ -171,7 +174,7 @@ export function nudgeEmail(params: { licenseTail: string }): EmailContent {
     `<p style="margin:0 0 16px;">Your license (ending <strong>${params.licenseTail}</strong>) has not been used yet.</p>
 <p style="margin:0 0 16px;">The audit takes about a minute and needs nothing but the domain. If you are not sure which site to start with, start with the one you would most want an AI to recommend.</p>
 ${button(dashboard, 'Run your audit')}
-<p style="margin:0 0 12px;"><strong>One thing worth knowing.</strong> With the exception of Google's crawlers, AI crawlers do not execute JavaScript. If your site renders client-side, the content you are proud of may not exist as far as they are concerned — and the audit will tell you exactly which pages.</p>
+<p style="margin:0 0 12px;"><strong>One thing worth knowing.</strong> With the exception of Google's and Apple's crawlers, AI crawlers do not execute JavaScript. If your site renders client-side, the content you are proud of may not exist as far as they are concerned — and the audit will tell you exactly which pages.</p>
 <p style="margin:0;color:#6b7689;font-size:13px;">Reply to this email if anything is unclear. It reaches a person.</p>`,
     'Your Crawlable audit is waiting.',
   );
@@ -182,7 +185,7 @@ The audit takes about a minute and needs nothing but the domain.
 
 Run your audit: ${dashboard}
 
-With the exception of Google's crawlers, AI crawlers do not execute JavaScript. If your site renders client-side, the content you are proud of may not exist as far as they are concerned.
+With the exception of Google's and Apple's crawlers, AI crawlers do not execute JavaScript. If your site renders client-side, the content you are proud of may not exist as far as they are concerned.
 
 Reply to this email if anything is unclear.
 

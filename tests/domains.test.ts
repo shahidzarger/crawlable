@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { AGENCY_DOMAIN_SLOTS, normaliseDomain } from '@/lib/domains';
+import { normaliseDomain } from '@/lib/domains';
+import { PLANS, planById } from '@/lib/plans';
+
+/**
+ * A small limit for the mechanism tests below.
+ *
+ * Deliberately a literal rather than a plan's allowance: these assertions are
+ * about how claimDomain behaves at its boundary, and pinning them to Agency
+ * Pro's 15 would mean rewriting the test every time the plan changes — and
+ * claiming fifteen domains to prove the sixteenth is refused.
+ */
+const LIMIT = 3;
 import { MemoryStore } from '@/lib/db/memory';
 
 /**
@@ -56,16 +67,16 @@ describe('claimDomain', () => {
 
   it('claims a free slot for a new domain', async () => {
     const db = store();
-    expect(await db.claimDomain(KEY, 'one.com', AGENCY_DOMAIN_SLOTS)).toBe('claimed');
+    expect(await db.claimDomain(KEY, 'one.com', LIMIT)).toBe('claimed');
     expect((await db.listDomains(KEY)).map((s) => s.domain)).toEqual(['one.com']);
   });
 
   it('re-auditing a registered domain never consumes a second slot', async () => {
     const db = store();
-    await db.claimDomain(KEY, 'one.com', AGENCY_DOMAIN_SLOTS);
+    await db.claimDomain(KEY, 'one.com', LIMIT);
 
     for (let i = 0; i < 10; i += 1) {
-      expect(await db.claimDomain(KEY, 'one.com', AGENCY_DOMAIN_SLOTS)).toBe('existing');
+      expect(await db.claimDomain(KEY, 'one.com', LIMIT)).toBe('existing');
     }
 
     expect(await db.listDomains(KEY)).toHaveLength(1);
@@ -74,24 +85,24 @@ describe('claimDomain', () => {
   it('refuses a fourth domain but still allows the first three', async () => {
     const db = store();
     for (const domain of ['one.com', 'two.com', 'three.com']) {
-      expect(await db.claimDomain(KEY, domain, AGENCY_DOMAIN_SLOTS)).toBe('claimed');
+      expect(await db.claimDomain(KEY, domain, LIMIT)).toBe('claimed');
     }
 
-    expect(await db.claimDomain(KEY, 'four.com', AGENCY_DOMAIN_SLOTS)).toBe('limit-reached');
-    expect(await db.listDomains(KEY)).toHaveLength(3);
+    expect(await db.claimDomain(KEY, 'four.com', LIMIT)).toBe('limit-reached');
+    expect(await db.listDomains(KEY)).toHaveLength(LIMIT);
 
     // The refusal must not have locked them out of what they already own.
-    expect(await db.claimDomain(KEY, 'two.com', AGENCY_DOMAIN_SLOTS)).toBe('existing');
+    expect(await db.claimDomain(KEY, 'two.com', LIMIT)).toBe('existing');
   });
 
   it('updates last_scanned_at on every successful claim', async () => {
     const db = store();
-    await db.claimDomain(KEY, 'one.com', AGENCY_DOMAIN_SLOTS);
+    await db.claimDomain(KEY, 'one.com', LIMIT);
     const first = (await db.listDomains(KEY))[0]?.lastScannedAt;
     expect(first).not.toBeNull();
 
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await db.claimDomain(KEY, 'one.com', AGENCY_DOMAIN_SLOTS);
+    await db.claimDomain(KEY, 'one.com', LIMIT);
     const second = (await db.listDomains(KEY))[0]?.lastScannedAt;
 
     expect(second).not.toBeNull();
@@ -100,8 +111,8 @@ describe('claimDomain', () => {
 
   it('keeps slots separate per license', async () => {
     const db = store();
-    await db.claimDomain('hash-a', 'shared.com', AGENCY_DOMAIN_SLOTS);
-    await db.claimDomain('hash-b', 'shared.com', AGENCY_DOMAIN_SLOTS);
+    await db.claimDomain('hash-a', 'shared.com', LIMIT);
+    await db.claimDomain('hash-b', 'shared.com', LIMIT);
 
     expect(await db.listDomains('hash-a')).toHaveLength(1);
     expect(await db.listDomains('hash-b')).toHaveLength(1);
@@ -109,17 +120,39 @@ describe('claimDomain', () => {
 
   it('never hands out more slots than the plan sells, under concurrency', async () => {
     const db = store();
-    await db.claimDomain(KEY, 'one.com', AGENCY_DOMAIN_SLOTS);
-    await db.claimDomain(KEY, 'two.com', AGENCY_DOMAIN_SLOTS);
+    await db.claimDomain(KEY, 'one.com', LIMIT);
+    await db.claimDomain(KEY, 'two.com', LIMIT);
 
     // Two different new domains racing for the single remaining slot.
     const [a, b] = await Promise.all([
-      db.claimDomain(KEY, 'three.com', AGENCY_DOMAIN_SLOTS),
-      db.claimDomain(KEY, 'four.com', AGENCY_DOMAIN_SLOTS),
+      db.claimDomain(KEY, 'three.com', LIMIT),
+      db.claimDomain(KEY, 'four.com', LIMIT),
     ]);
 
     expect([a, b].filter((r) => r === 'claimed')).toHaveLength(1);
     expect([a, b].filter((r) => r === 'limit-reached')).toHaveLength(1);
-    expect(await db.listDomains(KEY)).toHaveLength(AGENCY_DOMAIN_SLOTS);
+    expect(await db.listDomains(KEY)).toHaveLength(LIMIT);
+  });
+});
+
+describe('plan domain allowances', () => {
+  it('gives every plan at least one domain slot', () => {
+    // A plan with zero slots sells a licence that can never audit anything.
+    for (const plan of PLANS) {
+      expect(plan.domainSlots, plan.name).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('never sells fewer scans than domains', () => {
+    // Three domains and two scans would mean one registered site could never
+    // be audited at all.
+    for (const plan of PLANS) {
+      expect(plan.totalScansAllowed, plan.name).toBeGreaterThanOrEqual(plan.domainSlots);
+    }
+  });
+
+  it('matches the advertised Agency Pro allowance', () => {
+    expect(planById('agency')?.domainSlots).toBe(15);
+    expect(planById('agency')?.totalScansAllowed).toBe(50);
   });
 });

@@ -249,7 +249,7 @@ function ScanResult({ result }: { result: AuditResult }) {
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Link href="/#pricing" className="btn-primary px-5 py-2.5 text-sm">
-            Run the full audit — $39
+            Run the full audit — $29
           </Link>
           <span className="text-xs ink-muted">
             Score {result.score}/100 on this page ·{' '}

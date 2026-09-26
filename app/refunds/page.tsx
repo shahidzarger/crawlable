@@ -5,7 +5,7 @@ import { Clause, Important, LegalLayout, SUPPORT_EMAIL } from '@/components/lega
 export const metadata: Metadata = {
   title: 'Refund Policy',
   description:
-    'Refunds within 14 days on unused audit credits. Spent credits are non-refundable because the crawl has already run. Stated plainly, with the exceptions listed.',
+    'Refunds within 14 days on unused scans. A scan that has run is not refundable because the crawl already happened. Stated plainly, with the exceptions listed.',
   alternates: { canonical: '/refunds' },
 };
 
@@ -13,13 +13,13 @@ export default function RefundsPage() {
   return (
     <LegalLayout
       title="Refund Policy"
-      summary="If you bought credits and have not used them, you get your money back within 14 days. If you have used them, the work is done and the compute is spent — so those are not refundable. The exceptions are below, and we honour them."
+      summary="If you bought scans and have not used them, you get your money back within 14 days. If you have used them, the work is done and the compute is spent — so those are not refundable. The exceptions are below, and we honour them."
     >
       <Clause n={1} heading="The rule">
         <div className="surface-card p-5">
           <p className="font-medium text-[var(--ink-primary)]">
-            Full refund within 14 days of purchase, provided every audit credit is
-            completely unused.
+            Full refund within 14 days of purchase, provided every scan on the licence
+            is completely unused.
           </p>
           <p className="mt-2 text-sm ink-secondary">
             No form, no justification required. Email{' '}
@@ -31,7 +31,7 @@ export default function RefundsPage() {
         </div>
       </Clause>
 
-      <Clause n={2} heading="Why a spent credit is not refundable">
+      <Clause n={2} heading="Why a used scan is not refundable">
         <p>
           Running an audit crawls up to 40 pages of your site, analyses each one and
           generates your fix files. That compute is bought and paid for the moment you
@@ -39,26 +39,26 @@ export default function RefundsPage() {
           permanently and cannot be returned.
         </p>
         <p>
-          So on the Growth Pack, if you have run two audits, three credits remain and three
-          are refundable. We refund pro rata rather than refusing outright:
+          So on the Growth plan, if you have used three of your ten scans, seven remain and
+          seven are refundable. We refund pro rata rather than refusing outright:
         </p>
         <div className="mt-2 code-block">
           <p className="font-mono text-sm">
-            Growth Pack, $89, 5 credits, 2 used
+            Growth, $79, 10 scans, 3 used
             <br />
-            → refund 3 × $17.80 = $53.40
+            → refund 7 × $7.90 = $55.30
           </p>
         </div>
         <Important>
           <p>
             A partial scan that stopped early because your site responded slowly does{' '}
-            <strong>not</strong> count as a spent credit. Tell us and we will restore it.
+            <strong>not</strong> count as a used scan. Tell us and we will restore it.
           </p>
         </Important>
       </Clause>
 
       <Clause n={3} heading="Cases where we refund regardless of the 14 days">
-        <p>We will refund a used credit, outside the window, if:</p>
+        <p>We will refund a used scan, outside the window, if:</p>
         <ul className="ml-5 list-disc space-y-1">
           <li>the audit failed, returned an empty report, or never delivered your files;</li>
           <li>
@@ -79,16 +79,23 @@ export default function RefundsPage() {
         </p>
       </Clause>
 
-      <Clause n={4} heading="Subscriptions">
+      <Clause n={4} heading="The scan window">
         <p>
-          The monthly Agency Pro plan can be cancelled at any time from the link in your
-          purchase email. Cancellation stops the next charge; the current period runs to
-          its end and is not pro-rated, because your website slots and their unlimited
-          re-audits have been available to you throughout it.
+          Every plan is a one-time purchase, not a subscription — there is nothing to
+          cancel and nothing renews. What each plan carries instead is a window: 30 days on
+          Starter, 60 days on Growth and Agency Pro. Unused scans stop working when the
+          window closes.
         </p>
+        <Important>
+          <p>
+            The window exists because a verification scan is only worth anything while the
+            fixes are fresh. If yours closed before you got to deploy, email us — we would
+            rather reopen it than keep money for work we never did.
+          </p>
+        </Important>
         <p>
-          If you cancel within 14 days of your <em>first</em> payment and have run no
-          audits in that period, we refund that payment in full.
+          Your report and your Fix Kit stay downloadable after the window closes. Only new
+          scans need a live licence.
         </p>
       </Clause>
 
@@ -99,7 +106,7 @@ export default function RefundsPage() {
           appears within 5–10 business days depending on your bank.
         </p>
         <p>
-          Refunding an order deactivates its licence key and any remaining credits on it.
+          Refunding an order deactivates its licence key and any remaining scans on it.
           Reports already generated stay accessible unless you also ask for deletion, which
           is covered in the{' '}
           <Link href="/privacy" className="underline underline-offset-4">

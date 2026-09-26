@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isLicenseExpired, isUsableLicenseStatus } from '@/lib/lemonsqueezy';
-import { recordLicense, remainingCredits, spendCredit } from '@/lib/licensing';
+import { recordLicense, remainingScans, spendScan } from '@/lib/licensing';
 import { hashLicenseKey } from '@/lib/lemonsqueezy';
 import { store } from '@/lib/db';
 
@@ -106,30 +106,30 @@ describe('credits decrement cleanly on a freshly provisioned pack', () => {
       status: 'active',
     });
 
-    expect(license.auditQuota, 'quota comes from lib/plans, not the payload').toBe(5);
-    expect(remainingCredits(license)).toBe(5);
+    expect(license.totalScansAllowed, 'quota comes from lib/plans, not the payload').toBe(10);
+    expect(remainingScans(license)).toBe(10);
 
     const outcomes = [];
-    for (let i = 0; i < 5; i += 1) {
-      outcomes.push(await spendCredit(keyHash));
+    for (let i = 0; i < 10; i += 1) {
+      outcomes.push(await spendScan(keyHash));
     }
 
-    expect(outcomes.every((o) => o.allowed), 'all five must be allowed').toBe(true);
-    expect(outcomes.map((o) => o.remaining)).toEqual([4, 3, 2, 1, 0]);
+    expect(outcomes.every((o) => o.allowed), 'all ten must be allowed').toBe(true);
+    expect(outcomes.map((o) => o.remaining)).toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
 
-    const sixth = await spendCredit(keyHash);
-    expect(sixth.allowed).toBe(false);
-    expect(sixth.reason).toMatch(/credits on this license are used/);
-    // The refusal must be about credits, never about expiry.
-    expect(sixth.reason).not.toMatch(/expired/i);
+    const eleventh = await spendScan(keyHash);
+    expect(eleventh.allowed).toBe(false);
+    expect(eleventh.reason).toMatch(/scans on this license are used/);
+    // The refusal must be about the quota, never about expiry.
+    expect(eleventh.reason).not.toMatch(/window closed/i);
 
     const db = await store();
     const finalRecord = await db.getLicense(keyHash);
-    expect(finalRecord?.auditsUsed).toBe(5);
+    expect(finalRecord?.scansUsed).toBe(10);
     expect(finalRecord?.status).toBe('active');
   });
 
-  it('two concurrent spends on the last credit cannot both succeed', async () => {
+  it('two concurrent spends on the last scan cannot both succeed', async () => {
     const key = `TEST-SINGLE-${Date.now()}`;
     const keyHash = hashLicenseKey(key);
 
@@ -141,7 +141,11 @@ describe('credits decrement cleanly on a freshly provisioned pack', () => {
       status: 'active',
     });
 
-    const [a, b] = await Promise.all([spendCredit(keyHash), spendCredit(keyHash)]);
+    // Starter sells 3 scans: burn two so the race is genuinely for the last.
+    await spendScan(keyHash);
+    await spendScan(keyHash);
+
+    const [a, b] = await Promise.all([spendScan(keyHash), spendScan(keyHash)]);
     expect([a.allowed, b.allowed].filter(Boolean).length).toBe(1);
   });
 });

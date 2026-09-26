@@ -21,10 +21,10 @@ export const metadata: Metadata = {
 const TOPICS = [
   {
     heading: 'Something went wrong with an audit',
-    body: 'Include the domain and roughly when you ran it. If a crawl stopped early or came back empty, say so — we restore the credit.',
+    body: 'Include the domain and roughly when you ran it. If a crawl stopped early or came back empty, say so — we restore the scan.',
   },
   {
-    heading: 'Licence keys, credits and billing',
+    heading: 'Licence keys, scans and billing',
     body: 'Tell us the last four characters of your key rather than the whole thing. We can see the rest from our side.',
   },
   {

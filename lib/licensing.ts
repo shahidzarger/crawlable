@@ -18,8 +18,27 @@ import {
  * a malformed or replayed webhook can never grant more credits than a plan sells.
  */
 
-export function quotaForPlan(plan: PlanId): number | null {
-  return planById(plan)?.auditQuota ?? null;
+export function quotaForPlan(plan: PlanId): number {
+  return planById(plan)?.totalScansAllowed ?? 1;
+}
+
+export function domainSlotsForPlan(plan: PlanId): number {
+  return planById(plan)?.domainSlots ?? 1;
+}
+
+/**
+ * When a licence bought now stops being usable.
+ *
+ * Computed at grant time and stored, rather than derived from createdAt on
+ * every read. If the window length in the catalogue were ever changed, a
+ * derived expiry would silently move the deadline for everyone who had already
+ * bought — shortening it for some of them, which is not a change anyone should
+ * be able to make by editing a marketing constant.
+ */
+export function expiryForPlan(plan: PlanId, from: Date = new Date()): string | null {
+  const days = planById(plan)?.windowDays;
+  if (days === undefined || days <= 0) return null;
+  return new Date(from.getTime() + days * 86_400_000).toISOString();
 }
 
 export async function recordLicense(params: {
@@ -37,8 +56,10 @@ export async function recordLicense(params: {
     keyTail: licenseTail(params.licenseKey),
     plan: params.plan,
     email: params.email,
-    auditQuota: quotaForPlan(params.plan),
-    auditsUsed: 0,
+    targetDomain: null,
+    totalScansAllowed: quotaForPlan(params.plan),
+    scansUsed: 0,
+    expiresAt: expiryForPlan(params.plan),
     orderId: params.orderId,
     subscriptionId: params.subscriptionId ?? null,
     status: params.status ?? 'active',
@@ -117,8 +138,31 @@ export interface CreditCheck {
   remaining: number | null;
 }
 
-/** Spend one audit credit, or explain why it could not be spent. */
-export async function spendCredit(keyHash: string): Promise<CreditCheck> {
+/** True when a licence's scan window has closed. */
+export function isWindowClosed(license: LicenseRecord): boolean {
+  if (license.expiresAt === null) return false;
+  const expiry = Date.parse(license.expiresAt);
+  // An unparseable timestamp is treated as open, for the same reason an
+  // unparseable Lemon Squeezy expiry is: locking a paying customer out over a
+  // date we failed to read is the worse of the two failures.
+  if (Number.isNaN(expiry)) return false;
+  return expiry <= Date.now();
+}
+
+/** Scans left on a licence, ignoring the window. */
+export function remainingScans(license: LicenseRecord): number {
+  return Math.max(0, license.totalScansAllowed - license.scansUsed);
+}
+
+/**
+ * Spend one scan, or explain why it could not be spent.
+ *
+ * The explanation matters as much as the refusal here: "you have used all 3
+ * scans" and "your 30-day window closed on 4 March" lead to completely
+ * different next steps for the customer, and a generic "not allowed" leads to
+ * a support ticket.
+ */
+export async function spendScan(keyHash: string): Promise<CreditCheck> {
   const db = await store();
   const license = await db.getLicense(keyHash);
 
@@ -127,28 +171,81 @@ export async function spendCredit(keyHash: string): Promise<CreditCheck> {
     return { allowed: false, reason: `License is ${license.status}.`, remaining: 0 };
   }
 
-  const consumed = await db.consumeCredit(keyHash);
+  const consumed = await db.consumeScan(keyHash);
   if (!consumed) {
+    if (isWindowClosed(license)) {
+      const closed = new Date(license.expiresAt as string).toISOString().slice(0, 10);
+      return {
+        allowed: false,
+        reason: `This license's scan window closed on ${closed}.`,
+        remaining: remainingScans(license),
+      };
+    }
     return {
       allowed: false,
-      reason:
-        license.auditQuota === null
-          ? 'License is not active.'
-          : `All ${license.auditQuota} audit credits on this license are used.`,
+      reason: `All ${license.totalScansAllowed} scans on this license are used.`,
       remaining: 0,
     };
   }
 
   const updated = await db.getLicense(keyHash);
-  const remaining =
-    updated?.auditQuota === null || updated === null
-      ? null
-      : Math.max(0, updated.auditQuota - updated.auditsUsed);
-
-  return { allowed: true, reason: null, remaining };
+  return {
+    allowed: true,
+    reason: null,
+    remaining: updated ? remainingScans(updated) : null,
+  };
 }
 
-export function remainingCredits(license: LicenseRecord): number | null {
-  if (license.auditQuota === null) return null;
-  return Math.max(0, license.auditQuota - license.auditsUsed);
+/**
+ * Decide whether a licence may audit a domain, and bind it on first use.
+ *
+ * Two different limits are at work and they are easy to confuse:
+ *   - totalScansAllowed caps HOW OFTEN you may scan.
+ *   - domainSlots caps HOW MANY distinct sites you may register.
+ * Re-auditing a site you have already registered always passes the second
+ * check; that is what makes "verification re-scan" free of slot cost.
+ */
+export type DomainDecision =
+  | { allowed: true; domain: string; claim: 'existing' | 'claimed' }
+  | { allowed: false; reason: string; code: 'domain-locked' | 'slots-full' };
+
+export async function authoriseDomain(
+  license: LicenseRecord,
+  domain: string,
+): Promise<DomainDecision> {
+  const db = await store();
+  const slots = domainSlotsForPlan(license.plan);
+
+  if (slots <= 1) {
+    /*
+     * Single-domain plans bind on first use and stay bound.
+     *
+     * The bind is conditional inside the store, so two concurrent first audits
+     * cannot bind two different domains — the second one reads back the first
+     * one's domain and is refused here.
+     */
+    const bound = await db.bindTargetDomain(license.keyHash, domain);
+    if (bound !== domain) {
+      return {
+        allowed: false,
+        code: 'domain-locked',
+        reason: `This license is registered to ${bound}. Upgrade to track more than one domain.`,
+      };
+    }
+    return { allowed: true, domain, claim: 'existing' };
+  }
+
+  const claim = await db.claimDomain(license.keyHash, domain, slots);
+  if (claim === 'limit-reached') {
+    return {
+      allowed: false,
+      code: 'slots-full',
+      reason: `All ${slots} domain slots on this license are in use. Re-scan one of them, or upgrade for more.`,
+    };
+  }
+
+  // Record the first domain as the target too, so the re-scan banner on a
+  // multi-domain plan still has something to offer by default.
+  await db.bindTargetDomain(license.keyHash, domain);
+  return { allowed: true, domain, claim };
 }

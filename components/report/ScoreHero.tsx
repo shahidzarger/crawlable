@@ -49,7 +49,7 @@ export function ScoreHero({
             {pagesSkipped} further {pagesSkipped === 1 ? 'page was' : 'pages were'} found
             but not fetched, because {host} responded slowly. The score below reflects the
             pages we did read. Re-run the audit for fuller coverage — it will not cost
-            another credit if you contact support.
+            another scan if you contact support.
           </p>
         </div>
       )}

@@ -24,8 +24,10 @@ CREATE TABLE IF NOT EXISTS licenses (
   key_tail        TEXT NOT NULL,
   plan            TEXT NOT NULL,
   email           TEXT NOT NULL,
-  audit_quota     INTEGER,
-  audits_used     INTEGER NOT NULL DEFAULT 0,
+  target_domain   TEXT,
+  total_scans_allowed INTEGER NOT NULL DEFAULT 1,
+  scans_used      INTEGER NOT NULL DEFAULT 0,
+  expires_at      TIMESTAMPTZ,
   order_id        TEXT NOT NULL,
   subscription_id TEXT,
   status          TEXT NOT NULL DEFAULT 'active',
@@ -38,6 +40,54 @@ CREATE TABLE IF NOT EXISTS licenses (
 
 -- Added after the initial release; safe to run against an existing table.
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS nudged_at TIMESTAMPTZ;
+
+/*
+ * Audit credits became scan credits.
+ *
+ * The rename runs only when the old column is present and the new one is not,
+ * which makes it safe to run on a fresh database (CREATE TABLE already used
+ * the new names, so neither branch fires) and safe to run twice on an existing
+ * one. A plain ALTER ... RENAME has no IF EXISTS form, so the guard is the
+ * whole point: init() runs on every cold start, and an unguarded rename would
+ * throw on the second.
+ */
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'licenses' AND column_name = 'audit_quota'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'licenses' AND column_name = 'total_scans_allowed'
+  ) THEN
+    ALTER TABLE licenses RENAME COLUMN audit_quota TO total_scans_allowed;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'licenses' AND column_name = 'audits_used'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'licenses' AND column_name = 'scans_used'
+  ) THEN
+    ALTER TABLE licenses RENAME COLUMN audits_used TO scans_used;
+  END IF;
+END $$;
+
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS target_domain TEXT;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS total_scans_allowed INTEGER;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS scans_used INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+
+/*
+ * Backfill the one row shape the rename cannot express: the old Agency
+ * subscription stored NULL to mean "unmetered". Nothing is unmetered now, so
+ * a NULL here would make every comparison against it false and silently lock
+ * the customer out. 50 is what the plan they hold now sells.
+ */
+UPDATE licenses SET total_scans_allowed = 50
+  WHERE total_scans_allowed IS NULL AND plan = 'agency';
+UPDATE licenses SET total_scans_allowed = 1 WHERE total_scans_allowed IS NULL;
 
 CREATE INDEX IF NOT EXISTS licenses_order_id_idx ON licenses (order_id);
 CREATE INDEX IF NOT EXISTS licenses_email_idx ON licenses (email);
@@ -77,6 +127,18 @@ CREATE TABLE IF NOT EXISTS subscription_domains (
 CREATE UNIQUE INDEX IF NOT EXISTS subscription_domains_key_domain_idx
   ON subscription_domains (license_key_hash, domain);
 
+/*
+ * Order -> plan, written by order_created and read by license_key_created.
+ *
+ * Deliberately not a foreign key to licenses: the whole point is that this row
+ * exists BEFORE the licence does.
+ */
+CREATE TABLE IF NOT EXISTS order_plans (
+  order_id   TEXT PRIMARY KEY,
+  plan       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS rate_limits (
   bucket     TEXT NOT NULL,
   hit_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -90,8 +152,10 @@ interface LicenseRow {
   key_tail: string;
   plan: string;
   email: string;
-  audit_quota: number | null;
-  audits_used: number;
+  target_domain: string | null;
+  total_scans_allowed: number;
+  scans_used: number;
+  expires_at: Date | null;
   order_id: string;
   subscription_id: string | null;
   status: string;
@@ -108,8 +172,10 @@ function toLicense(row: LicenseRow): LicenseRecord {
     keyTail: row.key_tail,
     plan: row.plan as PlanId,
     email: row.email,
-    auditQuota: row.audit_quota,
-    auditsUsed: row.audits_used,
+    targetDomain: row.target_domain,
+    totalScansAllowed: row.total_scans_allowed,
+    scansUsed: row.scans_used,
+    expiresAt: row.expires_at ? row.expires_at.toISOString() : null,
     orderId: row.order_id,
     subscriptionId: row.subscription_id,
     status: row.status as LicenseRecord['status'],
@@ -141,20 +207,30 @@ export class PostgresStore implements Store {
   async upsertLicense(record: LicenseRecord): Promise<void> {
     await this.sql`
       INSERT INTO licenses (
-        key_hash, key_tail, plan, email, audit_quota, audits_used,
+        key_hash, key_tail, plan, email, target_domain,
+        total_scans_allowed, scans_used, expires_at,
         order_id, subscription_id, status, brand_name, brand_color
       ) VALUES (
         ${record.keyHash}, ${record.keyTail}, ${record.plan}, ${record.email},
-        ${record.auditQuota}, ${record.auditsUsed}, ${record.orderId},
+        ${record.targetDomain},
+        ${record.totalScansAllowed}, ${record.scansUsed}, ${record.expiresAt},
+        ${record.orderId},
         ${record.subscriptionId}, ${record.status}, ${record.brandName}, ${record.brandColor}
       )
       ON CONFLICT (key_hash) DO UPDATE SET
-        plan            = EXCLUDED.plan,
-        email           = EXCLUDED.email,
-        audit_quota     = EXCLUDED.audit_quota,
-        subscription_id = EXCLUDED.subscription_id,
-        status          = EXCLUDED.status,
-        updated_at      = NOW()
+        plan                = EXCLUDED.plan,
+        email               = EXCLUDED.email,
+        total_scans_allowed = EXCLUDED.total_scans_allowed,
+        subscription_id     = EXCLUDED.subscription_id,
+        status              = EXCLUDED.status,
+        updated_at          = NOW()
+        /*
+         * scans_used, target_domain and expires_at are deliberately NOT
+         * updated on conflict. Lemon Squeezy retries a webhook on any non-2xx,
+         * and a redelivered order_created must not reset the counter, unbind
+         * the domain, or extend the window — which is exactly what would
+         * happen if these were refreshed from EXCLUDED.
+         */
     `;
   }
 
@@ -196,18 +272,54 @@ export class PostgresStore implements Store {
     `;
   }
 
-  async consumeCredit(keyHash: string): Promise<boolean> {
+  async consumeScan(keyHash: string): Promise<boolean> {
     // A single conditional UPDATE, so two concurrent audits cannot both spend
-    // the last credit.
-    const rows = await this.sql<{ audits_used: number }[]>`
+    // the last scan. The expiry is evaluated in the same statement for the
+    // same reason: a separate read-then-write could straddle the deadline.
+    const rows = await this.sql<{ scans_used: number }[]>`
       UPDATE licenses
-      SET audits_used = audits_used + 1, updated_at = NOW()
+      SET scans_used = scans_used + 1, updated_at = NOW()
       WHERE key_hash = ${keyHash}
         AND status = 'active'
-        AND (audit_quota IS NULL OR audits_used < audit_quota)
-      RETURNING audits_used
+        AND scans_used < total_scans_allowed
+        AND (expires_at IS NULL OR expires_at > NOW())
+      RETURNING scans_used
     `;
     return rows.length > 0;
+  }
+
+  async bindTargetDomain(keyHash: string, domain: string): Promise<string> {
+    /*
+     * Bind only when unbound, and report back whatever the licence now holds.
+     *
+     * The COALESCE in the RETURNING clause is what makes one round trip
+     * enough: the UPDATE matches the row either way, so the caller always
+     * learns the authoritative domain — the one just written, or the one that
+     * was already there and must not be overwritten.
+     */
+    const rows = await this.sql<{ target_domain: string }[]>`
+      UPDATE licenses
+      SET target_domain = COALESCE(target_domain, ${domain}), updated_at = NOW()
+      WHERE key_hash = ${keyHash}
+      RETURNING target_domain
+    `;
+    return rows[0]?.target_domain ?? domain;
+  }
+
+  async recordOrderPlan(orderId: string, plan: PlanId): Promise<void> {
+    // First write wins. A redelivered order_created must not change the plan
+    // under a licence that has already been provisioned from it.
+    await this.sql`
+      INSERT INTO order_plans (order_id, plan) VALUES (${orderId}, ${plan})
+      ON CONFLICT (order_id) DO NOTHING
+    `;
+  }
+
+  async getOrderPlan(orderId: string): Promise<PlanId | null> {
+    const rows = await this.sql<{ plan: string }[]>`
+      SELECT plan FROM order_plans WHERE order_id = ${orderId} LIMIT 1
+    `;
+    return (rows[0]?.plan as PlanId | undefined) ?? null;
   }
 
   async listDomains(keyHash: string): Promise<DomainSlot[]> {
@@ -273,7 +385,7 @@ export class PostgresStore implements Store {
     const rows = await this.sql<LicenseRow[]>`
       SELECT * FROM licenses
       WHERE status = 'active'
-        AND audits_used = 0
+        AND scans_used = 0
         AND nudged_at IS NULL
         AND created_at < NOW() - (${minAgeHours}::text || ' hours')::interval
       ORDER BY created_at ASC
