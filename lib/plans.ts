@@ -71,16 +71,16 @@ export const PLANS: readonly Plan[] = [
     priceNote: 'per month',
     auditQuota: null,
     recurring: true,
-    tagline: 'Unlimited audits, for agencies auditing continuously.',
+    tagline: 'Three websites, re-audited as often as you like.',
     features: [
-      'Unlimited audits, unlimited sites',
-      'Complete fix kit on every audit',
-      'Full audit history in one dashboard',
-      'Re-audit clients monthly to prove progress',
-      'Cancel any time',
+      '3 active website slots with unlimited re-scans',
+      'Re-scan any slot to track GPTBot, ClaudeBot and PerplexityBot access',
+      'Download updated llms.txt and robots.txt kits anytime',
+      'Client-ready Fix Kits and health reports',
+      'Cancel anytime',
     ],
     highlight: false,
-    cta: 'Go unlimited',
+    cta: 'Start monitoring',
   },
 ] as const;
 

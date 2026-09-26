@@ -28,6 +28,14 @@ interface LicenseInfo {
   auditQuota: number | null;
   auditsUsed: number;
   creditsRemaining: number | null;
+  /** Website slots on a subscription plan; null when the plan burns credits. */
+  domainLimit: number | null;
+}
+
+interface DomainSlot {
+  domain: string;
+  createdAt: string;
+  lastScannedAt: string | null;
 }
 
 // Storage lives in lib/license-storage so the report page reads and writes the
@@ -47,6 +55,9 @@ export function Dashboard() {
   const [running, setRunning] = useState(false);
   const [latest, setLatest] = useState<AuditResult | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [domains, setDomains] = useState<DomainSlot[]>([]);
+  /** Set when the API refuses a fourth domain, so the upsell can be shown. */
+  const [domainLimitHit, setDomainLimitHit] = useState(false);
 
   /** Re-download a past audit's kit without re-running the crawl. */
   async function downloadKit(audit: AuditSummary) {
@@ -71,7 +82,7 @@ export function Dashboard() {
         headers: { Authorization: `Bearer ${key}` },
       });
       const payload = (await response.json()) as
-        | { license: LicenseInfo; audits: AuditSummary[] }
+        | { license: LicenseInfo; audits: AuditSummary[]; domains?: DomainSlot[] }
         | { error: string };
 
       if (!response.ok || 'error' in payload) {
@@ -82,6 +93,7 @@ export function Dashboard() {
 
       setLicense(payload.license);
       setAudits(payload.audits);
+      setDomains(payload.domains ?? []);
       setStatus('ready');
       writeStoredKey(key);
     } catch {
@@ -98,13 +110,14 @@ export function Dashboard() {
     }
   }, [load]);
 
-  async function runAudit(event: React.FormEvent) {
+  async function runAudit(event: React.FormEvent, overrideUrl?: string) {
     event.preventDefault();
-    const target = auditUrl.trim();
+    const target = (overrideUrl ?? auditUrl).trim();
     if (!target || running) return;
 
     setRunning(true);
     setMessage(null);
+    setDomainLimitHit(false);
     setLatest(null);
 
     try {
@@ -119,10 +132,16 @@ export function Dashboard() {
 
       const payload = (await response.json()) as
         | { audit: AuditResult; creditsRemaining: number | null }
-        | { error: string };
+        | { error: string; code?: string };
 
       if (!response.ok || 'error' in payload) {
-        setMessage('error' in payload ? payload.error : 'The audit failed.');
+        // A refused fourth domain is an upsell, not a failure — it gets its
+        // own panel with a purchase link rather than the generic error line.
+        if ('code' in payload && payload.code === 'DOMAIN_LIMIT_REACHED') {
+          setDomainLimitHit(true);
+        } else {
+          setMessage('error' in payload ? payload.error : 'The audit failed.');
+        }
         return;
       }
 
@@ -207,6 +226,10 @@ export function Dashboard() {
   }
 
   const remaining = license.creditsRemaining;
+  const slotLimit = license.domainLimit;
+  const isSlotPlan = slotLimit !== null;
+  const slotsFree = isSlotPlan ? Math.max(0, slotLimit - domains.length) : 0;
+  const packUrl = process.env.NEXT_PUBLIC_LS_BUY_PACK;
 
   return (
     <div className="space-y-8">
@@ -216,7 +239,17 @@ export function Dashboard() {
           <p className="mt-1 text-sm ink-secondary">
             {/* Read from the catalogue so a plan rename cannot drift out of sync here. */}
             {planById(license.plan)?.name ?? license.plan} · key ending {license.keyTail} ·{' '}
-            {remaining === null ? 'unlimited audits' : `${remaining} credit${remaining === 1 ? '' : 's'} left`}
+            {/*
+              A slot plan reports sites, not credits. Saying "unlimited audits"
+              here would be true but misleading: re-audits are unlimited, the
+              number of sites is not, and the limit is what a customer needs to
+              see before they hit it.
+            */}
+            {isSlotPlan
+              ? `${domains.length}/${slotLimit} monitored domains`
+              : remaining === null
+                ? 'unlimited audits'
+                : `${remaining} credit${remaining === 1 ? '' : 's'} left`}
           </p>
         </div>
         <button type="button" onClick={signOut} className="btn-ghost px-4 py-2 text-sm">
@@ -228,6 +261,11 @@ export function Dashboard() {
         <h2 className="font-semibold">Run an audit</h2>
         <p className="mt-1 text-sm ink-secondary">
           Up to 40 pages, sampled across your sitemap. Takes about a minute.
+          {isSlotPlan
+            ? slotsFree > 0
+              ? ` ${slotsFree} of your ${slotLimit} domain slots ${slotsFree === 1 ? 'is' : 'are'} still free.`
+              : ' All your domain slots are in use — re-audit any of them below at no cost.'
+            : ''}
         </p>
 
         <form onSubmit={runAudit} className="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -278,6 +316,101 @@ export function Dashboard() {
           </p>
         ) : null}
       </section>
+
+      {/*
+        The upsell panel, shown only after the API actually refuses a domain.
+        Not a modal: the customer is mid-task with a URL they still want
+        audited, and a dialog they must dismiss to re-read their own slot list
+        would be in the way of the decision they are being asked to make.
+      */}
+      {domainLimitHit ? (
+        <section
+          role="alert"
+          className="surface-card p-6"
+          style={{ borderColor: 'var(--data-warn)' }}
+        >
+          <h2 className="font-semibold">
+            <span aria-hidden style={{ color: 'var(--data-warn)' }}>
+              {SEVERITY.warning.icon}{' '}
+            </span>
+            All {slotLimit} domain slots are in use
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed ink-secondary">
+            Agency Pro covers {slotLimit} websites with unlimited re-audits. You can
+            re-audit any domain below as often as you like at no cost — or buy a Growth
+            Pack for five one-time audits on other sites. Credits never expire.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {packUrl ? (
+              <a
+                href={`${packUrl}${packUrl.includes('?') ? '&' : '?'}checkout%5Bcustom%5D%5Bplan%5D=pack`}
+                className="btn-primary px-5 py-2.5 text-sm"
+              >
+                Get a Growth Pack
+              </a>
+            ) : (
+              <Link href="/#pricing" className="btn-primary px-5 py-2.5 text-sm">
+                See the plans
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => setDomainLimitHit(false)}
+              className="btn-ghost px-5 py-2.5 text-sm"
+            >
+              Dismiss
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {isSlotPlan ? (
+        <section className="surface-card p-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-semibold">
+              Monitored Domains ({domains.length}/{slotLimit})
+            </h2>
+            <p className="text-xs ink-muted">Unlimited re-audits on every slot</p>
+          </div>
+
+          <ul className="mt-4 space-y-2">
+            {Array.from({ length: slotLimit }).map((_, index) => {
+              const slot = domains[index];
+              return (
+                <li
+                  key={slot?.domain ?? `empty-${index}`}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3"
+                >
+                  {slot ? (
+                    <>
+                      <div className="min-w-0">
+                        <p className="truncate font-mono text-sm">{slot.domain}</p>
+                        <p className="mt-0.5 text-xs ink-muted">
+                          {slot.lastScannedAt
+                            ? `Last audited ${slot.lastScannedAt.slice(0, 10)}`
+                            : 'Not audited yet'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(event) => void runAudit(event, slot.domain)}
+                        disabled={running}
+                        className="btn-ghost shrink-0 px-4 py-2 text-xs"
+                      >
+                        {running ? 'Crawling…' : 'Re-audit'}
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-sm ink-muted">
+                      Slot {index + 1} — free. Audit any domain to claim it.
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       {latest ? <LatestResult result={latest} licenseKey={licenseKey} /> : null}
 

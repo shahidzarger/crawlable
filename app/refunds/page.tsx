@@ -83,8 +83,8 @@ export default function RefundsPage() {
         <p>
           The monthly Agency Pro plan can be cancelled at any time from the link in your
           purchase email. Cancellation stops the next charge; the current period runs to
-          its end and is not pro-rated, because unlimited audits have been available to
-          you throughout it.
+          its end and is not pro-rated, because your website slots and their unlimited
+          re-audits have been available to you throughout it.
         </p>
         <p>
           If you cancel within 14 days of your <em>first</em> payment and have run no

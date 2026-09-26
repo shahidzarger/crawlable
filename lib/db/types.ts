@@ -26,6 +26,22 @@ export interface LicenseRecord {
   updatedAt: string;
 }
 
+/** One of the website slots an Agency Pro subscription includes. */
+export interface DomainSlot {
+  domain: string;
+  createdAt: string;
+  lastScannedAt: string | null;
+}
+
+/**
+ * Outcome of asking for permission to audit a domain on a slot-based plan.
+ *
+ *   existing      already registered — re-audit freely, nothing consumed
+ *   claimed       a free slot was taken by this domain
+ *   limit-reached every slot is spoken for by a different domain
+ */
+export type DomainClaim = 'existing' | 'claimed' | 'limit-reached';
+
 export interface AuditRecord {
   id: string;
   /** Null for anonymous free scans. */
@@ -58,6 +74,22 @@ export interface Store {
    * Returns false when the quota is exhausted, without incrementing.
    */
   consumeCredit(keyHash: string): Promise<boolean>;
+
+  /** Every website slot registered to a license, oldest first. */
+  listDomains(keyHash: string): Promise<DomainSlot[]>;
+
+  /**
+   * Atomically claim a website slot.
+   *
+   * Must be atomic per license for the same reason consumeCredit is: two
+   * concurrent audits of two different new domains, run against the last free
+   * slot, must not both succeed. An already-registered domain is always
+   * allowed regardless of how full the plan is — the limit is on how many
+   * sites you may register, never on how often you may re-audit them.
+   *
+   * Touches last_scanned_at on every successful claim.
+   */
+  claimDomain(keyHash: string, domain: string, limit: number): Promise<DomainClaim>;
 
   /**
    * Active licenses that have never been used, bought at least `minAgeHours`

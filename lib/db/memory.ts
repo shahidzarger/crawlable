@@ -1,5 +1,11 @@
 import type { AuditSummary } from '@/lib/audit/types';
-import type { AuditRecord, LicenseRecord, Store } from './types';
+import type {
+  AuditRecord,
+  DomainClaim,
+  DomainSlot,
+  LicenseRecord,
+  Store,
+} from './types';
 
 /**
  * In-process store.
@@ -13,6 +19,7 @@ export class MemoryStore implements Store {
   private licenses = new Map<string, LicenseRecord>();
   private audits = new Map<string, AuditRecord>();
   private buckets = new Map<string, number[]>();
+  private domains = new Map<string, DomainSlot[]>();
 
   async init(): Promise<void> {
     // Nothing to set up.
@@ -70,6 +77,39 @@ export class MemoryStore implements Store {
     record.auditsUsed += 1;
     record.updatedAt = new Date().toISOString();
     return true;
+  }
+
+  async listDomains(keyHash: string): Promise<DomainSlot[]> {
+    return [...(this.domains.get(keyHash) ?? [])].sort((a, b) =>
+      a.createdAt.localeCompare(b.createdAt),
+    );
+  }
+
+  async claimDomain(
+    keyHash: string,
+    domain: string,
+    limit: number,
+  ): Promise<DomainClaim> {
+    /*
+     * Single-threaded, so no lock is needed here — but the ordering mirrors
+     * the Postgres implementation exactly so the two cannot diverge in
+     * behaviour: an existing domain is always allowed, and the limit is only
+     * consulted for a domain that is not yet registered.
+     */
+    const slots = this.domains.get(keyHash) ?? [];
+    const now = new Date().toISOString();
+
+    const existing = slots.find((slot) => slot.domain === domain);
+    if (existing) {
+      existing.lastScannedAt = now;
+      return 'existing';
+    }
+
+    if (slots.length >= limit) return 'limit-reached';
+
+    slots.push({ domain, createdAt: now, lastScannedAt: now });
+    this.domains.set(keyHash, slots);
+    return 'claimed';
   }
 
   async listLicensesToNudge(minAgeHours: number, limit: number): Promise<LicenseRecord[]> {

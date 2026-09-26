@@ -1,6 +1,13 @@
 import postgres from 'postgres';
 import type { AuditResult, AuditSummary } from '@/lib/audit/types';
-import type { AuditRecord, LicenseRecord, PlanId, Store } from './types';
+import type {
+  AuditRecord,
+  DomainClaim,
+  DomainSlot,
+  LicenseRecord,
+  PlanId,
+  Store,
+} from './types';
 
 /**
  * Postgres-backed store. Works against Neon, Supabase, Vercel Postgres or any
@@ -48,6 +55,27 @@ CREATE TABLE IF NOT EXISTS audits (
 
 CREATE INDEX IF NOT EXISTS audits_license_idx ON audits (license_key_hash, created_at DESC);
 CREATE INDEX IF NOT EXISTS audits_created_idx ON audits (created_at DESC);
+
+/*
+ * Website slots for subscription plans.
+ *
+ * Keyed on the license HASH, never the key itself. This column was specified
+ * as a plaintext license_key, but the whole licensing design rests on the key
+ * never being stored: a breach of this database must not yield working
+ * credentials. A second table holding them in the clear would undo that for
+ * every subscriber.
+ */
+CREATE TABLE IF NOT EXISTS subscription_domains (
+  id               BIGSERIAL PRIMARY KEY,
+  license_key_hash TEXT NOT NULL REFERENCES licenses (key_hash) ON DELETE CASCADE,
+  domain           TEXT NOT NULL,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_scanned_at  TIMESTAMPTZ
+);
+
+-- Unique so re-auditing a registered site can never consume a second slot.
+CREATE UNIQUE INDEX IF NOT EXISTS subscription_domains_key_domain_idx
+  ON subscription_domains (license_key_hash, domain);
 
 CREATE TABLE IF NOT EXISTS rate_limits (
   bucket     TEXT NOT NULL,
@@ -180,6 +208,65 @@ export class PostgresStore implements Store {
       RETURNING audits_used
     `;
     return rows.length > 0;
+  }
+
+  async listDomains(keyHash: string): Promise<DomainSlot[]> {
+    const rows = await this.sql<
+      { domain: string; created_at: Date; last_scanned_at: Date | null }[]
+    >`
+      SELECT domain, created_at, last_scanned_at
+      FROM subscription_domains
+      WHERE license_key_hash = ${keyHash}
+      ORDER BY created_at ASC
+    `;
+
+    return rows.map((row) => ({
+      domain: row.domain,
+      createdAt: row.created_at.toISOString(),
+      lastScannedAt: row.last_scanned_at?.toISOString() ?? null,
+    }));
+  }
+
+  async claimDomain(
+    keyHash: string,
+    domain: string,
+    limit: number,
+  ): Promise<DomainClaim> {
+    /*
+     * Serialised per license by locking its row first.
+     *
+     * Without the lock, two concurrent audits of two different new domains
+     * against the last free slot would both read count = limit - 1 under READ
+     * COMMITTED and both insert, handing out more slots than the plan sells.
+     * A conditional INSERT ... WHERE (SELECT count(*)) < limit has the same
+     * race: the subquery is evaluated per statement, not under a lock.
+     */
+    return this.sql.begin(async (tx) => {
+      await tx`SELECT 1 FROM licenses WHERE key_hash = ${keyHash} FOR UPDATE`;
+
+      const existing = await tx<{ domain: string }[]>`
+        UPDATE subscription_domains
+        SET last_scanned_at = NOW()
+        WHERE license_key_hash = ${keyHash} AND domain = ${domain}
+        RETURNING domain
+      `;
+      if (existing.length > 0) return 'existing' as const;
+
+      const [counted] = await tx<{ count: number }[]>`
+        SELECT count(*)::int AS count
+        FROM subscription_domains
+        WHERE license_key_hash = ${keyHash}
+      `;
+      if ((counted?.count ?? 0) >= limit) return 'limit-reached' as const;
+
+      await tx`
+        INSERT INTO subscription_domains (license_key_hash, domain, last_scanned_at)
+        VALUES (${keyHash}, ${domain}, NOW())
+        ON CONFLICT (license_key_hash, domain)
+        DO UPDATE SET last_scanned_at = NOW()
+      `;
+      return 'claimed' as const;
+    });
   }
 
   async listLicensesToNudge(minAgeHours: number, limit: number): Promise<LicenseRecord[]> {

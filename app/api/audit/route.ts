@@ -1,9 +1,11 @@
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { authenticateLicense, fail, ok, readJson } from '@/lib/api';
 import { store } from '@/lib/db';
 import { FetchError, PAGE_LIMITS, runAudit } from '@/lib/audit';
 import { remainingCredits, spendCredit } from '@/lib/licensing';
 import { validateUrl } from '@/lib/scanner/validate-url';
+import { AGENCY_DOMAIN_SLOTS, normaliseDomain } from '@/lib/domains';
 import { auditReadyEmail } from '@/lib/email/templates';
 import { sendEmail } from '@/lib/email/send';
 
@@ -82,12 +84,48 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const credit = await spendCredit(keyHash);
-  if (!credit.allowed) {
-    return fail('no-credits', credit.reason ?? 'No audit credits remaining.', 402);
-  }
-
   const db = await store();
+
+  /*
+   * Two authorisation models, decided by plan.
+   *
+   * Agency Pro sells a number of SITES, not a number of audits: re-auditing a
+   * registered domain is free and unlimited, which is the whole proposition.
+   * The one-time plans sell a number of AUDITS and burn a credit each time.
+   *
+   * The slot claim happens before the crawl for the same reason the credit
+   * debit does — two concurrent requests must not both take the last one.
+   */
+  const isSlotPlan = license.plan === 'agency';
+  let credit: Awaited<ReturnType<typeof spendCredit>> | null = null;
+
+  if (isSlotPlan) {
+    const domain = normaliseDomain(parsed.data.url);
+    if (!domain) {
+      return fail('invalid-url', friendly('invalid-url', 'Invalid URL.'), 400);
+    }
+
+    const claim = await db.claimDomain(keyHash, domain, AGENCY_DOMAIN_SLOTS);
+
+    if (claim === 'limit-reached') {
+      return NextResponse.json(
+        {
+          code: 'DOMAIN_LIMIT_REACHED',
+          error:
+            `You have used all ${AGENCY_DOMAIN_SLOTS} domain slots included in Agency Pro. ` +
+            'You can re-audit your existing domains anytime, or purchase a Growth Pack ' +
+            'to audit additional websites.',
+          domains: await db.listDomains(keyHash),
+        },
+        { status: 403 },
+      );
+    }
+  } else {
+    credit = await spendCredit(keyHash);
+    if (!credit.allowed) {
+      return fail('no-credits', credit.reason ?? 'No audit credits remaining.', 402);
+    }
+  }
 
   try {
     const result = await runAudit({
@@ -120,13 +158,23 @@ export async function POST(request: Request): Promise<Response> {
 
     return ok({
       audit: result,
-      creditsRemaining: credit.remaining,
+      creditsRemaining: credit?.remaining ?? null,
+      domains: isSlotPlan ? await db.listDomains(keyHash) : undefined,
     });
   } catch (error) {
-    // The crawl never produced a result, so give the credit back.
-    const refunded = await db.getLicense(keyHash);
-    if (refunded && refunded.auditQuota !== null && refunded.auditsUsed > 0) {
-      await db.upsertLicense({ ...refunded, auditsUsed: refunded.auditsUsed - 1 });
+    /*
+     * Refund the credit — but only on the credit-burning plans.
+     *
+     * A slot plan spent nothing to refund. The slot stays claimed, which is
+     * deliberate: the customer chose that domain, and a failed first crawl
+     * should not quietly hand the slot back and let them register a fourth
+     * site. They can re-audit it as often as they like at no cost.
+     */
+    if (!isSlotPlan) {
+      const refunded = await db.getLicense(keyHash);
+      if (refunded && refunded.auditQuota !== null && refunded.auditsUsed > 0) {
+        await db.upsertLicense({ ...refunded, auditsUsed: refunded.auditsUsed - 1 });
+      }
     }
 
     if (error instanceof FetchError) {
@@ -155,7 +203,10 @@ export async function GET(request: Request): Promise<Response> {
   const { license, keyHash } = authResult.auth;
 
   const db = await store();
-  const audits = await db.listAudits(keyHash, 50);
+  const [audits, domains] = await Promise.all([
+    db.listAudits(keyHash, 50),
+    license.plan === 'agency' ? db.listDomains(keyHash) : Promise.resolve([]),
+  ]);
 
   return ok({
     license: {
@@ -168,7 +219,10 @@ export async function GET(request: Request): Promise<Response> {
       creditsRemaining: remainingCredits(license),
       brandName: license.brandName,
       brandColor: license.brandColor,
+      /** Slot allowance, or null on the credit-burning plans. */
+      domainLimit: license.plan === 'agency' ? AGENCY_DOMAIN_SLOTS : null,
     },
+    domains,
     audits,
   });
 }
