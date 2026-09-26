@@ -8,6 +8,7 @@ import {
   writeStoredLicenseKey,
 } from '@/lib/license-storage';
 import { SEVERITY } from '@/components/report/severity';
+import { FIX_KIT_FILES } from '@/lib/audit/file-manifest';
 
 /**
  * Download controls for a paid audit's generated files.
@@ -22,28 +23,15 @@ import { SEVERITY } from '@/components/report/severity';
  * customer to go somewhere else to do the download.
  */
 
-const FILES: Array<{ name: string; label: string; blurb: string }> = [
-  {
-    name: 'FIXES.md',
-    label: 'FIXES.md',
-    blurb: 'Every finding, ordered by impact, with the affected URLs',
-  },
-  {
-    name: 'llms.txt',
-    label: 'llms.txt',
-    blurb: 'Built from your real pages and sections',
-  },
-  {
-    name: 'robots.txt',
-    label: 'robots.txt',
-    blurb: 'Retrieval crawlers allowed, your existing rules preserved',
-  },
-  {
-    name: 'schema.jsonld',
-    label: 'JSON-LD schema',
-    blurb: 'Organization, WebSite and BreadcrumbList blocks',
-  },
-];
+/*
+ * The rows come from the Fix Kit manifest, not from a list kept here.
+ *
+ * A local copy is what made this card show four rows for a five-file kit:
+ * sitemap.xml was added to the generators and to the archive, and this list
+ * was not touched. Reading the manifest means the UI cannot fall behind the
+ * kit again, and the order matches FIXES.md's deployment order.
+ */
+const FILES = FIX_KIT_FILES;
 
 export function FixKitDownloads({
   auditId,

@@ -8,6 +8,11 @@ import type {
   RobotsAnalysis,
 } from './types';
 import { generateSitemapXml } from './sitemap';
+// Re-exported so existing importers keep working; the list itself now lives
+// in file-manifest.ts, which the report UI can import without pulling this
+// whole module into the client bundle.
+export { GENERATED_FILE_NAMES } from './file-manifest';
+import { GENERATED_FILE_NAMES as KIT_NAMES } from './file-manifest';
 
 /**
  * Fix-file generation.
@@ -430,20 +435,6 @@ export function generateFixesMarkdown(result: AuditResult): string {
 }
 
 /**
- * Every file a Fix Kit must contain, in deployment order.
- *
- * Exported so the download route, the zip assembly and the tests all agree.
- * The pricing page sells these by name; a kit missing one is a refund.
- */
-export const GENERATED_FILE_NAMES = [
-  'robots.txt',
-  'sitemap.xml',
-  'llms.txt',
-  'schema.jsonld',
-  'FIXES.md',
-] as const satisfies readonly (keyof GeneratedFiles)[];
-
-/**
  * Is a stored `generated` object still complete?
  *
  * This is the guard that was missing. Audits are saved with their generated
@@ -460,7 +451,7 @@ export function isCompleteFixKit(
   files: Partial<GeneratedFiles> | undefined,
 ): files is GeneratedFiles {
   if (!files) return false;
-  return GENERATED_FILE_NAMES.every(
+  return KIT_NAMES.every(
     (name) => typeof files[name] === 'string' && files[name]!.length > 0,
   );
 }

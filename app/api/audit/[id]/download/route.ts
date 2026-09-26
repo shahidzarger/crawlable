@@ -1,7 +1,12 @@
 import { authenticateLicense, fail } from '@/lib/api';
 import { store } from '@/lib/db';
 import { generateAll } from '@/lib/audit';
-import { GENERATED_FILE_NAMES, isCompleteFixKit } from '@/lib/audit/generators';
+import { isCompleteFixKit } from '@/lib/audit/generators';
+import {
+  FIX_KIT_CONTENT_TYPES,
+  GENERATED_FILE_NAMES,
+  isGeneratedFileName,
+} from '@/lib/audit/file-manifest';
 import { createZip } from '@/lib/audit/zip';
 import type { GeneratedFiles } from '@/lib/audit/types';
 
@@ -15,17 +20,10 @@ export const dynamic = 'force-dynamic';
  * read the findings, but only the buyer can pull the files.
  */
 
-const CONTENT_TYPES: Record<keyof GeneratedFiles, string> = {
-  'robots.txt': 'text/plain; charset=utf-8',
-  'sitemap.xml': 'application/xml; charset=utf-8',
-  'llms.txt': 'text/markdown; charset=utf-8',
-  'schema.jsonld': 'application/ld+json; charset=utf-8',
-  'FIXES.md': 'text/markdown; charset=utf-8',
-};
-
-function isGeneratedFile(value: string): value is keyof GeneratedFiles {
-  return value in CONTENT_TYPES;
-}
+// Both the whitelist and the served content types come from the manifest, so
+// a new Fix Kit file is downloadable the moment it is generated.
+const CONTENT_TYPES = FIX_KIT_CONTENT_TYPES;
+const isGeneratedFile = isGeneratedFileName;
 
 export async function GET(
   request: Request,
