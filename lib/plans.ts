@@ -3,7 +3,18 @@ import type { PlanId } from '@/lib/db/types';
 export interface Plan {
   id: PlanId;
   name: string;
+  /** Display price, e.g. "$39". Kept in step with priceUsd by tests/seo.test.ts. */
   price: string;
+  /**
+   * The same number, machine-readable, for schema.org Offer markup.
+   *
+   * Structured data that disagrees with the price on the page is worse than no
+   * structured data at all — Google can surface the marked-up number in a rich
+   * result and will drop the markup entirely once it notices the mismatch. So
+   * this is the only number the JSON-LD reads, and a test asserts the two
+   * agree.
+   */
+  priceUsd: number;
   priceNote: string;
   /** Audits granted. Null means unmetered. */
   auditQuota: number | null;
@@ -30,6 +41,7 @@ export const PLANS: readonly Plan[] = [
     id: 'single',
     name: 'Single Audit',
     price: '$39',
+    priceUsd: 39,
     priceNote: 'one-time',
     auditQuota: 1,
     recurring: false,
@@ -49,6 +61,7 @@ export const PLANS: readonly Plan[] = [
     id: 'pack',
     name: 'Growth Pack',
     price: '$89',
+    priceUsd: 89,
     priceNote: 'one-time, 5 audits',
     auditQuota: 5,
     recurring: false,
@@ -68,6 +81,7 @@ export const PLANS: readonly Plan[] = [
     id: 'agency',
     name: 'Agency Pro',
     price: '$29',
+    priceUsd: 29,
     priceNote: 'per month',
     auditQuota: null,
     recurring: true,

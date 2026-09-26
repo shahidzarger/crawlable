@@ -2,39 +2,65 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
-import { SITE_URL } from '@/lib/site-url';
+import { PRODUCTION_ORIGIN, SITE_URL } from '@/lib/site-url';
+import { serialiseJsonLd, siteSchema } from '@/lib/seo/schema';
 
+const DESCRIPTION =
+  "Audit your site's visibility across ChatGPT Search, Claude, and Perplexity. " +
+  'Get real-time crawl scores and automated Fix Kits.';
+
+/**
+ * Root metadata.
+ *
+ * metadataBase is the RESOLVED origin, not the production constant, so that a
+ * relative OG image resolves against whatever host is serving the page. The
+ * canonical is the production constant, because a canonical is a claim about
+ * where the real page lives — and every public route overrides it with its own
+ * path, while the two private routes (/dashboard, /audit/[id]) carry noindex.
+ */
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Crawlable — see what AI crawlers actually read on your site',
-    template: '%s · Crawlable',
+    default: 'Crawlable | Instant AI Search & LLM Visibility Audits',
+    template: '%s | Crawlable - AI Search & LLM Visibility Audits',
   },
-  description:
-    'AI crawlers do not run JavaScript. Crawlable audits your site the way GPTBot, ClaudeBot and PerplexityBot see it, then generates the llms.txt, robots.txt and JSON-LD that fix what it finds.',
+  description: DESCRIPTION,
+  applicationName: 'Crawlable',
   keywords: [
     'AI readability audit',
+    'LLM visibility',
+    'ChatGPT Search optimisation',
     'llms.txt generator',
     'GPTBot robots.txt',
     'answer engine optimization',
     'generative engine optimization',
     'AI crawler JavaScript rendering',
   ],
+  alternates: { canonical: PRODUCTION_ORIGIN },
   openGraph: {
     type: 'website',
+    locale: 'en_US',
+    url: PRODUCTION_ORIGIN,
     siteName: 'Crawlable',
-    title: 'See what AI crawlers actually read on your site',
-    description:
-      'Most AI crawlers never run your JavaScript. Find out how much of your site they can read — free, in about 20 seconds.',
-    url: SITE_URL,
+    title: 'Crawlable | Instant AI Search & LLM Visibility Audits',
+    description: DESCRIPTION,
+    images: [
+      {
+        url: '/og.png',
+        width: 1200,
+        height: 630,
+        alt: 'Crawlable — AI search and LLM visibility audits',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'See what AI crawlers actually read on your site',
-    description:
-      'Most AI crawlers never run your JavaScript. Find out how much of your site they can read.',
+    title: 'Crawlable | Instant AI Search & LLM Visibility Audits',
+    description: DESCRIPTION,
+    images: ['/og.png'],
   },
   robots: { index: true, follow: true },
+  icons: { icon: '/icon.png', apple: '/icon.png' },
 };
 
 export const viewport: Viewport = {
@@ -53,6 +79,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        {/*
+          Site-wide Organization and SoftwareApplication markup. It sits in the
+          root layout rather than on the home page so that every entry point —
+          a shared crawler page, a platform guide — carries the publisher
+          identity, which is what search engines attach the logo and the
+          knowledge panel to.
+        */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serialiseJsonLd(siteSchema()) }}
+        />
+      </head>
       <body className="flex min-h-screen flex-col overflow-x-hidden antialiased">
         <a
           href="#main"

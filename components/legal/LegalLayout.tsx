@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { SUPPORT_EMAIL } from '@/lib/support';
 
 /**
  * Shared shell for the three legal pages.
@@ -13,7 +14,10 @@ import Link from 'next/link';
 /** Single source of truth for the date shown on every legal page. */
 export const LEGAL_EFFECTIVE_DATE = '22 September 2026';
 
-export const SUPPORT_EMAIL = 'support@usecrawlable.com';
+// Re-exported so the many existing importers keep working; the value itself
+// now lives in lib/support.ts, which the schema module can read without
+// pulling a React component into its graph.
+export { SUPPORT_EMAIL };
 
 export function LegalLayout({
   title,

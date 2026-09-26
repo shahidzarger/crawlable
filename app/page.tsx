@@ -4,31 +4,27 @@ import { Scanner } from '@/components/Scanner';
 import { Pricing } from '@/components/Pricing';
 import { AI_CRAWLERS, NON_RENDERING_CRAWLERS } from '@/lib/audit/crawlers';
 import { FAQS } from '@/content/faq';
-import { SITE_URL } from '@/lib/site-url';
+import { serialiseJsonLd } from '@/lib/seo/schema';
 
+/*
+ * The home page deliberately sets no title: it inherits the root default,
+ * which is the one title that should not be run through the "%s | Crawlable"
+ * template.
+ */
 export const metadata: Metadata = {
-  title: 'Crawlable — see what AI crawlers actually read on your site',
   alternates: { canonical: '/' },
 };
 
 export default function HomePage() {
+  /*
+   * FAQPage only. The SoftwareApplication and Organization nodes moved to the
+   * root layout, where they are emitted once for every route — two
+   * SoftwareApplication nodes describing the same product on one page is the
+   * kind of ambiguity that makes a parser pick one and discard the other.
+   */
   const jsonLd = {
     '@context': 'https://schema.org',
     '@graph': [
-      {
-        '@type': 'SoftwareApplication',
-        name: 'Crawlable',
-        applicationCategory: 'DeveloperApplication',
-        operatingSystem: 'Web',
-        description:
-          'Audits a website the way non-rendering AI crawlers read it, then generates the llms.txt, robots.txt and JSON-LD that fix what it finds.',
-        offers: {
-          '@type': 'Offer',
-          price: '39',
-          priceCurrency: 'USD',
-          url: `${SITE_URL}/#pricing`,
-        },
-      },
       {
         '@type': 'FAQPage',
         mainEntity: FAQS.map((faq) => ({
@@ -44,7 +40,7 @@ export default function HomePage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serialiseJsonLd(jsonLd) }}
       />
 
       {/* Hero */}
