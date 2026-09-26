@@ -6,6 +6,7 @@ import { discoverUrls, mapWithConcurrency } from './discover';
 import { gradeFor, invisibleShare, overallScore, readablePages, runChecks } from './scoring';
 import { generateAll } from './generators';
 import { assertPublicHost, normaliseUrl, toOrigin } from './fetcher';
+import { dedupeByUrl, dedupeUrls, normaliseForCrawl } from './url';
 import type { AuditResult, AuditSummary } from './types';
 
 export * from './types';
@@ -86,17 +87,25 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
     analyseLlmsTxt(origin),
   ]);
 
+  const entryUrl = normaliseForCrawl(entry);
+
   let targets: string[];
   if (mode === 'scan') {
-    targets = [entry.toString()];
+    targets = [entryUrl];
   } else {
     const discovery = await discoverUrls(origin, limit, robots.sitemaps, deadline);
-    // Always audit the exact URL the customer entered, even if the sitemap
-    // sample did not include it.
-    const entryUrl = entry.toString();
-    targets = discovery.urls.includes(entryUrl)
-      ? discovery.urls
-      : [entryUrl, ...discovery.urls].slice(0, limit);
+    /*
+     * Always audit the exact URL the customer entered, even if the sitemap
+     * sample did not include it — then deduplicate.
+     *
+     * The membership test used to be a string comparison, which meant the
+     * entry URL was re-added whenever discovery had listed the same page under
+     * a different spelling: a trailing slash, a utm parameter, a reordered
+     * query. The customer paid for forty pages and got thirty-nine plus a copy
+     * of the home page. dedupeUrls keeps the first occurrence, so the entry
+     * stays at index 0 and is still the last thing a budget overrun drops.
+     */
+    targets = dedupeUrls([entryUrl, ...discovery.urls]).slice(0, limit);
   }
 
   /*
@@ -111,8 +120,25 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
     { deadline },
   );
 
-  const pages = settled.filter((page): page is NonNullable<typeof page> => page !== undefined);
-  const pagesSkipped = targets.length - pages.length;
+  const fetched = settled.filter((page): page is NonNullable<typeof page> => page !== undefined);
+
+  /*
+   * pagesSkipped is measured BEFORE deduplication, because it feeds
+   * isPartialScan — which decides whether the customer is told their report is
+   * incomplete and whether support restores the credit. A page dropped for
+   * being a duplicate was not skipped; counting it as one would raise a false
+   * partial-scan flag on a perfectly complete audit.
+   */
+  const pagesSkipped = targets.length - fetched.length;
+
+  /*
+   * A final collapse on the post-redirect URL. Two queued URLs can still turn
+   * out to be one page — /home redirecting to /, ?p=123 resolving to a slug —
+   * and no amount of pre-crawl normalisation can predict a redirect. Without
+   * this the page count is inflated and the duplicate-title check flags a page
+   * against its own alias.
+   */
+  const pages = dedupeByUrl(fetched, (page) => page.url);
 
   const checks = runChecks(pages, robots, llmsTxt);
   const score = overallScore(checks);

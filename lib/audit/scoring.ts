@@ -1,4 +1,5 @@
 import { VISIBILITY_CRITICAL_CRAWLERS } from './crawlers';
+import { dedupeByUrl } from './url';
 import type {
   CheckResult,
   Finding,
@@ -520,13 +521,31 @@ export function checkMetadata(pages: PageAnalysis[]): CheckResult {
   const noDescription = readable.filter((page) => !page.metaDescription);
   const noindexed = readable.filter((page) => page.noindex);
 
+  /*
+   * Duplicate titles are counted per canonical path, not per URL string.
+   *
+   * The orchestrator already collapses aliases before scoring, but this check
+   * repeats the guard because of what it costs to get wrong: a site reachable
+   * at both /pricing and /pricing/ would otherwise be told, in a paid report,
+   * that it has a duplicate-title problem — and the "duplicate" it is shown is
+   * the same page twice. That is the kind of finding that makes a customer
+   * stop trusting the rest of the report, so the check earns its own
+   * safeguard rather than relying on a caller.
+   *
+   * Grouping by key also keeps the deduction honest: duplicateCount drives a
+   * 20-point penalty, and an alias pair would spend it on nothing.
+   */
+  const distinct = dedupeByUrl(readable, (page) => page.url);
+
   const titleCounts = new Map<string, string[]>();
-  for (const page of readable) {
+  for (const page of distinct) {
     if (!page.title) continue;
     const list = titleCounts.get(page.title) ?? [];
     list.push(page.url);
     titleCounts.set(page.title, list);
   }
+
+  // Two entries here are now guaranteed to be two different pages.
   const duplicateTitles = [...titleCounts.values()].filter((urls) => urls.length > 1);
   const duplicateCount = duplicateTitles.reduce((sum, urls) => sum + urls.length, 0);
 

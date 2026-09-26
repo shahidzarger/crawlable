@@ -1,5 +1,11 @@
 import * as cheerio from 'cheerio';
 import { safeFetch, tryFetch, normaliseUrl } from './fetcher';
+import {
+  canonicalKey,
+  dedupeUrls,
+  normaliseForCrawl,
+  safeCanonicalKey,
+} from './url';
 
 /**
  * URL discovery: sitemap first, homepage links as a fallback.
@@ -21,26 +27,23 @@ const EXCLUDED_PATTERNS = [
   /\/wp-admin/i,
   /\/wp-json/i,
   /\/cart|\/checkout|\/account|\/login|\/signin|\/signup|\/logout/i,
-  /\?(?:.*&)?(?:add-to-cart|replytocom|utm_)/i,
+  // Not utm_: campaign parameters are stripped by normaliseForCrawl now,
+  // so excluding the URL would drop a real page whose only inbound link
+  // happened to carry one.
+  /\?(?:.*&)?(?:add-to-cart|replytocom)/i,
   /\/feed\/?$/i,
   /\.(?:jpg|jpeg|png|gif|webp|avif|svg|ico|css|js|pdf|zip|mp4|webm|woff2?|ttf|xml|json)$/i,
 ];
 
 function isAuditable(url: URL, origin: string): boolean {
   if (url.origin !== origin) return false;
-  const full = url.pathname + url.search;
+  // Tested against the cleaned form: a page is not excluded on the strength of
+  // a query parameter that is about to be stripped anyway.
+  const cleaned = new URL(normaliseForCrawl(url));
+  const full = cleaned.pathname + cleaned.search;
   return !EXCLUDED_PATTERNS.some((pattern) => pattern.test(full));
 }
 
-function normaliseForDedupe(url: URL): string {
-  const copy = new URL(url.toString());
-  copy.hash = '';
-  // Trailing slashes are the single biggest source of duplicate crawl targets.
-  if (copy.pathname.length > 1 && copy.pathname.endsWith('/')) {
-    copy.pathname = copy.pathname.slice(0, -1);
-  }
-  return copy.toString();
-}
 
 /** Parse a sitemap or sitemap index, following nested indexes one level deep. */
 export async function parseSitemap(
@@ -78,7 +81,7 @@ export async function parseSitemap(
     if (!loc) return;
     try {
       const url = new URL(loc);
-      if (isAuditable(url, origin)) found.push(normaliseForDedupe(url));
+      if (isAuditable(url, origin)) found.push(normaliseForCrawl(url));
     } catch {
       // Ignore malformed entries.
     }
@@ -104,7 +107,7 @@ export async function discoverFromHomepage(
     if (!href) return;
     try {
       const url = new URL(href, response.finalUrl);
-      if (isAuditable(url, origin)) found.add(normaliseForDedupe(url));
+      if (isAuditable(url, origin)) found.add(normaliseForCrawl(url));
     } catch {
       // Ignore malformed hrefs.
     }
@@ -137,15 +140,24 @@ export async function discoverUrls(
   deadline?: number,
 ): Promise<DiscoveryResult> {
   const outOfTime = (): boolean => deadline !== undefined && Date.now() >= deadline;
-  const root = normaliseUrl(origin).origin;
+  /*
+   * The root is stored in its crawlable form ("https://example.com/"), not as
+   * a bare origin. They are the same request, but they are different strings —
+   * and the caller in index.ts compares this list against the customer's entry
+   * URL, which the URL parser always renders with the slash. When the two
+   * spellings disagreed, the home page was queued twice: fetched twice, counted
+   * twice, and then flagged for sharing a title with itself.
+   */
+  const root = normaliseForCrawl(normaliseUrl(origin).origin);
   const ordered: string[] = [root];
-  const seen = new Set([normaliseForDedupe(new URL(root))]);
+  const seen = new Set([canonicalKey(root)]);
 
   const push = (candidates: string[]): void => {
     for (const candidate of candidates) {
       if (ordered.length >= limit) return;
-      if (seen.has(candidate)) continue;
-      seen.add(candidate);
+      const key = safeCanonicalKey(candidate);
+      if (key === null || seen.has(key)) continue;
+      seen.add(key);
       ordered.push(candidate);
     }
   };
@@ -159,7 +171,9 @@ export async function discoverUrls(
   for (const candidate of candidates) {
     if (ordered.length >= limit) break;
     if (outOfTime()) break;
-    const urls = await parseSitemap(candidate, root, limit * 3);
+    // Deduplicated before sampling, or a sitemap that lists /blog and
+    // /blog/ spends two of the sample's slots on one page.
+    const urls = dedupeUrls(await parseSitemap(candidate, root, limit * 3));
     if (urls.length > 0) {
       usedSitemap = candidate;
       // Prefer breadth: sample evenly across the sitemap rather than taking
