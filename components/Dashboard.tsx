@@ -53,6 +53,15 @@ export function Dashboard() {
 
   const [auditUrl, setAuditUrl] = useState('');
   const [running, setRunning] = useState(false);
+  /**
+   * The domain whose Re-audit button was clicked, or null.
+   *
+   * Separate from `running` because the two answer different questions.
+   * `running` is "is a crawl in progress" and gates every control. This is
+   * "which control started it" and decides which one shows progress — a
+   * single shared boolean made all three slots claim to be crawling.
+   */
+  const [crawlingDomain, setCrawlingDomain] = useState<string | null>(null);
   const [latest, setLatest] = useState<AuditResult | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [domains, setDomains] = useState<DomainSlot[]>([]);
@@ -116,6 +125,10 @@ export function Dashboard() {
     if (!target || running) return;
 
     setRunning(true);
+    // Which slot, if any, started this crawl. `running` still gates every
+    // control against concurrent audits; this only decides which one is
+    // allowed to say so.
+    setCrawlingDomain(overrideUrl ? target : null);
     setMessage(null);
     setDomainLimitHit(false);
     setLatest(null);
@@ -152,6 +165,9 @@ export function Dashboard() {
       setMessage('Could not reach the server. Your credit was not used.');
     } finally {
       setRunning(false);
+      // In `finally`, so a thrown error or an early return cannot leave a slot
+      // stuck reading "Crawling…" forever.
+      setCrawlingDomain(null);
     }
   }
 
@@ -391,13 +407,21 @@ export function Dashboard() {
                             : 'Not audited yet'}
                         </p>
                       </div>
+                      {/*
+                        Only the slot that was clicked reports progress.
+                        Every slot stays disabled while any crawl runs — one
+                        audit at a time is still the rule — but a disabled
+                        button that says "Crawling…" is claiming to be doing
+                        work it is not, which is what made all three look busy.
+                      */}
                       <button
                         type="button"
                         onClick={(event) => void runAudit(event, slot.domain)}
                         disabled={running}
+                        aria-busy={crawlingDomain === slot.domain}
                         className="btn-ghost shrink-0 px-4 py-2 text-xs"
                       >
-                        {running ? 'Crawling…' : 'Re-audit'}
+                        {crawlingDomain === slot.domain ? 'Crawling…' : 'Re-audit'}
                       </button>
                     </>
                   ) : (
