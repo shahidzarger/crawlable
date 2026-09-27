@@ -522,6 +522,23 @@ export class PostgresStore implements Store {
   }
 
   async rateLimit(bucket: string, limit: number, windowSeconds: number): Promise<boolean> {
+    /*
+     * Record first, then count — and the count includes this request.
+     *
+     * The previous order was count-then-insert, which is a race: ten requests
+     * arriving together all read the same count before any of them inserts,
+     * all see room, and all pass. A burst of parallel requests is exactly how
+     * someone trying to run up a bill would send them, so the limit leaked
+     * precisely when it mattered.
+     *
+     * Inserting first means concurrent requests each see every row written
+     * before their count ran, including each other's. A rejected request's
+     * row still counts, which is deliberate: a caller hammering a closed limit
+     * keeps it closed rather than being let back in the moment the oldest
+     * accepted request ages out.
+     */
+    await this.sql`INSERT INTO rate_limits (bucket) VALUES (${bucket})`;
+
     const rows = await this.sql<{ count: string }[]>`
       SELECT COUNT(*)::text AS count
       FROM rate_limits
@@ -530,9 +547,7 @@ export class PostgresStore implements Store {
     `;
 
     const count = Number.parseInt(rows[0]?.count ?? '0', 10);
-    if (count >= limit) return false;
-
-    await this.sql`INSERT INTO rate_limits (bucket) VALUES (${bucket})`;
+    if (count > limit) return false;
 
     // Sweep expired rows roughly one call in fifty.
     if (Math.random() < 0.02) {

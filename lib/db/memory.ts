@@ -204,13 +204,11 @@ export class MemoryStore implements Store {
     const windowStart = now - windowSeconds * 1000;
     const hits = (this.buckets.get(bucket) ?? []).filter((t) => t > windowStart);
 
-    if (hits.length >= limit) {
-      this.buckets.set(bucket, hits);
-      return false;
-    }
-
+    // Same semantics as the Postgres store: every attempt is recorded, and a
+    // rejected one still counts, so hammering a closed limit keeps it closed.
     hits.push(now);
     this.buckets.set(bucket, hits);
+    if (hits.length > limit) return false;
 
     // Opportunistic cleanup so a long-lived process does not grow unbounded.
     if (this.buckets.size > 10_000) {

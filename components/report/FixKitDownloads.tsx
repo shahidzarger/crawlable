@@ -131,7 +131,7 @@ export function FixKitDownloads({
             onChange={(event) => setDraftKey(event.target.value)}
             placeholder="Your licence key"
             aria-label="Licence key"
-            className="field flex-1 px-4 py-2.5 font-mono text-sm outline-none"
+            className="field flex-1 px-4 py-2.5 font-mono text-sm"
           />
           <button type="submit" className="btn-primary px-5 py-2.5 text-sm">
             Unlock downloads
@@ -298,7 +298,7 @@ function LockedFixKit({ siteUrl }: { siteUrl: string }) {
               onChange={(event) => setEmail(event.target.value)}
               disabled={state === 'sending'}
               placeholder="you@company.com"
-              className="field flex-1 px-4 py-2.5 text-sm outline-none disabled:opacity-60"
+              className="field flex-1 px-4 py-2.5 text-sm disabled:opacity-60"
             />
             <button
               type="submit"
@@ -310,7 +310,7 @@ function LockedFixKit({ siteUrl }: { siteUrl: string }) {
             </button>
           </form>
           {state === 'error' ? (
-            <p role="alert" className="mt-2 text-sm" style={{ color: 'var(--data-bad)' }}>
+            <p role="alert" className="mt-2 text-sm" style={{ color: 'var(--ink-bad)' }}>
               {message}
             </p>
           ) : null}

@@ -1,4 +1,5 @@
 import { PAGE_LIMITS } from '@/lib/audit/types-limits';
+import { env } from '@/lib/env';
 
 /**
  * Launch-window feature flags.
@@ -51,4 +52,31 @@ export function freeAuditRateLimit(): { limit: number; windowSeconds: number } {
   return betaFreeDeepAudit()
     ? { limit: 3, windowSeconds: 3600 }
     : { limit: 8, windowSeconds: 3600 };
+}
+
+/**
+ * Anonymous scans allowed per hour across the whole site — the circuit breaker.
+ *
+ * Per-IP limits are a courtesy to honest users; they are not a cost control.
+ * A botnet, or one attacker rotating through the 2^64 addresses of a single
+ * IPv6 /64, sails past them. What bounds the bill is a ceiling no amount of
+ * address rotation can raise, and this is it.
+ *
+ * The defaults assume a launch-stage product. A deep scan can hold a
+ * 1 GB function for up to 60 seconds and make 40 outbound fetches, so it is
+ * rationed far harder than a one-page scan. 120 deep scans an hour is two a
+ * minute, sustained, around the clock — comfortably above real demand for a
+ * product in beta, and small enough that the worst case is an annoyance on
+ * the invoice rather than an event.
+ *
+ * When it trips, anonymous scans get a 503 until the window rolls. Paid audits
+ * are not counted here: they are metered by licence and already cost the
+ * caller money.
+ */
+export function scanGlobalLimit(): { limit: number; windowSeconds: number } {
+  const override = env().SCAN_GLOBAL_HOURLY_LIMIT;
+  if (override) return { limit: override, windowSeconds: 3600 };
+  return betaFreeDeepAudit()
+    ? { limit: 120, windowSeconds: 3600 }
+    : { limit: 600, windowSeconds: 3600 };
 }

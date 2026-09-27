@@ -268,7 +268,14 @@ function DeltaCard({
    * verification scan is that it can say no. A customer who deploys the files
    * and sees "no change" needs to know that, not a green tick.
    */
+  /*
+   * Two tones for one verdict: the card border is a mark and takes the data
+   * palette; the numbers are text and take the ink tokens, which clear AA on
+   * every surface. One variable used to serve both, so the "after" score — the
+   * figure this whole panel exists to show — failed contrast when it went down.
+   */
   const tone = improved ? 'var(--data-good)' : unchanged ? 'var(--data-warn)' : 'var(--data-bad)';
+  const textTone = improved ? 'var(--ink-good)' : unchanged ? 'var(--ink-warn)' : 'var(--ink-bad)';
 
   return (
     <section className="surface-card p-6" style={{ borderColor: tone }}>
@@ -285,9 +292,9 @@ function DeltaCard({
         <span aria-hidden className="pb-2 text-2xl ink-muted">
           →
         </span>
-        <Figure label="After" value={newScore} colour={tone} />
+        <Figure label="After" value={newScore} colour={textTone} />
         <div className="pb-1">
-          <span className="font-mono text-sm tabular-nums" style={{ color: tone }}>
+          <span className="font-mono text-sm tabular-nums" style={{ color: textTone }}>
             {delta > 0 ? '+' : ''}
             {delta}
           </span>

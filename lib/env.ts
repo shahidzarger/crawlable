@@ -71,6 +71,16 @@ const schema = z.object({
    * this exists to prevent. Commercial sends therefore fail closed.
    */
   UNSUBSCRIBE_SECRET: z.string().min(16).optional(),
+
+  /**
+   * Site-wide ceiling on anonymous scans per hour, across ALL callers.
+   *
+   * The per-IP limit stops one person; it does nothing against many
+   * addresses, and every residential IPv6 connection is handed 2^64 of them.
+   * This is the number that bounds the worst-case compute bill regardless of
+   * how the traffic is distributed. Unset uses the defaults in lib/config.ts.
+   */
+  SCAN_GLOBAL_HOURLY_LIMIT: z.coerce.number().int().positive().optional(),
 });
 
 export type Env = z.infer<typeof schema>;

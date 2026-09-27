@@ -95,7 +95,7 @@ export function Scanner() {
           value={url}
           onChange={(event) => setUrl(event.target.value)}
           placeholder="https://yourwebsite.com"
-          className="field flex-1 px-4 py-3 text-base outline-none"
+          className="field flex-1 px-4 py-3 text-base"
           disabled={state.phase === 'scanning'}
         />
         <button
@@ -219,7 +219,7 @@ function ScanResult({ result }: { result: AuditResult }) {
             </div>
           </dl>
           {page.spaSignals.length > 0 ? (
-            <p className="mt-3 text-sm" style={{ color: 'var(--data-bad)' }}>
+            <p className="mt-3 text-sm" style={{ color: 'var(--ink-bad)' }}>
               <span aria-hidden>{SEVERITY.critical.icon} </span>
               {page.spaSignals[0]}
             </p>

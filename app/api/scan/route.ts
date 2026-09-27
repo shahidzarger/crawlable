@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
-import { enforceRateLimit, fail, ok, readJson } from '@/lib/api';
+import { enforceGlobalLimit, enforceRateLimit, fail, ok, readJson } from '@/lib/api';
 import { store } from '@/lib/db';
 import { FetchError, PAGE_LIMITS, redactForFreeScan, runAudit } from '@/lib/audit';
-import { betaFreeDeepAudit, freeAuditRateLimit } from '@/lib/config';
+import { betaFreeDeepAudit, freeAuditRateLimit, scanGlobalLimit } from '@/lib/config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -48,6 +48,19 @@ export async function POST(request: Request): Promise<Response> {
     windowSeconds,
   );
   if (limited) return limited;
+
+  /*
+   * The cost ceiling. Per-IP limiting above stops a person; this stops a
+   * crowd, which is the only shape of traffic that can run up a real bill on
+   * an endpoint that holds a 1 GB function for a minute per call.
+   */
+  const global = scanGlobalLimit();
+  const shed = await enforceGlobalLimit(
+    deep ? 'scan-deep' : 'scan',
+    global.limit,
+    global.windowSeconds,
+  );
+  if (shed) return shed;
 
   const parsedBody = await readJson(request);
   if ('response' in parsedBody) return parsedBody.response;

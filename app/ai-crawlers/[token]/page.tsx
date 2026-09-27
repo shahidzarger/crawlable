@@ -246,11 +246,12 @@ function Fact({
   value: string;
   tone?: 'good' | 'bad';
 }) {
+  // Text, so the text-safe ink tokens — the --data-* palette is for marks.
   const color =
     tone === 'bad'
-      ? 'var(--data-bad)'
+      ? 'var(--ink-bad)'
       : tone === 'good'
-        ? 'var(--data-good)'
+        ? 'var(--ink-good)'
         : 'var(--ink-primary)';
 
   return (

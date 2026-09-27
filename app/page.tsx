@@ -476,7 +476,7 @@ function TerminalDemo() {
           {'\n'}
           {'  <body>'}
           {'\n'}
-          <span style={{ color: 'var(--data-bad)' }}>{'    <div id="__next"></div>'}</span>
+          <span style={{ color: 'var(--ink-bad)' }}>{'    <div id="__next"></div>'}</span>
           {'\n'}
           {'  </body>'}
           {'\n'}
@@ -484,7 +484,7 @@ function TerminalDemo() {
           {'\n\n'}
           <span className="ink-muted">{'# 0 words of content. 14 scripts.'}</span>
           {'\n'}
-          <span style={{ color: 'var(--data-bad)' }}>
+          <span style={{ color: 'var(--ink-bad)' }}>
             {'# Everything you wrote is in the JavaScript.'}
           </span>
         </code>

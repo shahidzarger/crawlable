@@ -212,7 +212,7 @@ export function Dashboard() {
             value={licenseKey}
             onChange={(event) => setLicenseKey(event.target.value)}
             placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-            className="field w-full px-4 py-3 font-mono text-sm outline-none"
+            className="field w-full px-4 py-3 font-mono text-sm"
           />
           <button
             type="submit"
@@ -314,7 +314,7 @@ export function Dashboard() {
             value={auditUrl}
             onChange={(event) => setAuditUrl(event.target.value)}
             placeholder="clientdomain.com"
-            className="field flex-1 px-4 py-3 text-sm outline-none"
+            className="field flex-1 px-4 py-3 text-sm"
             disabled={running || exhausted}
           />
           <button
@@ -327,7 +327,7 @@ export function Dashboard() {
         </form>
 
         {exhausted ? (
-          <p className="mt-3 text-sm" style={{ color: 'var(--data-warn)' }}>
+          <p className="mt-3 text-sm" style={{ color: 'var(--ink-warn)' }}>
             <span aria-hidden>{SEVERITY.warning.icon} </span>
             {license.windowClosed
               ? `Your scan window closed${license.expiresAt ? ` on ${license.expiresAt.slice(0, 10)}` : ''}.`

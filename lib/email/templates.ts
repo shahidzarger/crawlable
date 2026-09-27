@@ -45,6 +45,14 @@ export interface EmailContent {
 
 const BRAND = '#3ddc97';
 const INK = '#0d0f14';
+/*
+ * Secondary text in email is #626c7e, the site's light-theme --ink-muted.
+ * It was #6b7689, which measures about 4.1:1 on the #f4f5f7 tiles and 4.4:1
+ * on the #fafbfc footer — under the 4.5:1 AA floor. That footer is where the
+ * postal address and the unsubscribe link now live, and CAN-SPAM wants the
+ * opt-out "clear and conspicuous": a legally required link in text that fails
+ * contrast is a bad place to be economical.
+ */
 
 /**
  * The footer every message carries.
@@ -63,7 +71,7 @@ const INK = '#0d0f14';
 function footer(kind: EmailKind, unsubscribe: string | null): string {
   const { legalName, postalAddress, registration } = businessIdentity();
   const lines: string[] = [
-    `Crawlable &middot; <a href="${siteUrl()}" style="color:#6b7689;">${siteUrl().replace(/^https?:\/\//, '')}</a>`,
+    `Crawlable &middot; <a href="${siteUrl()}" style="color:#626c7e;">${siteUrl().replace(/^https?:\/\//, '')}</a>`,
   ];
 
   if (legalName && postalAddress) {
@@ -74,7 +82,7 @@ function footer(kind: EmailKind, unsubscribe: string | null): string {
 
   if (kind === 'commercial' && unsubscribe) {
     lines.push(
-      `You are receiving this because you ran a scan or bought an audit. <a href="${unsubscribe}" style="color:#6b7689;text-decoration:underline;">Unsubscribe</a> and we will stop sending these.`,
+      `You are receiving this because you ran a scan or bought an audit. <a href="${unsubscribe}" style="color:#626c7e;text-decoration:underline;">Unsubscribe</a> and we will stop sending these.`,
     );
   } else {
     lines.push(
@@ -120,7 +128,7 @@ function shell(body: string, preheader: string, footerHtml: string): string {
 <tr><td style="padding:28px;color:#1f2430;font-size:15px;line-height:1.6;">
 ${body}
 </td></tr>
-<tr><td style="padding:18px 28px;background:#fafbfc;border-top:1px solid #e4e6ea;color:#6b7689;font-size:12px;line-height:1.5;">
+<tr><td style="padding:18px 28px;background:#fafbfc;border-top:1px solid #e4e6ea;color:#626c7e;font-size:12px;line-height:1.5;">
 ${footerHtml}
 </td></tr>
 </table>
@@ -151,13 +159,13 @@ export function purchaseEmail(params: {
 
   const html = shell(
     `<p style="margin:0 0 16px;">Your <strong>${plan.name}</strong> is active. ${quota}, ready to run.</p>
-<p style="margin:0 0 8px;color:#6b7689;font-size:13px;">Your license key</p>
+<p style="margin:0 0 8px;color:#626c7e;font-size:13px;">Your license key</p>
 <div style="background:#f4f5f7;border:1px solid #e4e6ea;border-radius:8px;padding:14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;word-break:break-all;color:${INK};">${licenseKey}</div>
 ${button(dashboard, 'Run your first audit')}
 <p style="margin:0 0 12px;"><strong>What happens next.</strong> Paste the key into the dashboard, enter a site, and the audit crawls up to 40 pages the way a non-rendering AI crawler does. It takes about a minute.</p>
 <p style="margin:0 0 12px;">You get back a prioritised fix list plus a Fix Kit .zip: <code style="background:#f4f5f7;padding:2px 5px;border-radius:4px;">robots.txt</code>, <code style="background:#f4f5f7;padding:2px 5px;border-radius:4px;">sitemap.xml</code>, <code style="background:#f4f5f7;padding:2px 5px;border-radius:4px;">llms.txt</code>, <code style="background:#f4f5f7;padding:2px 5px;border-radius:4px;">schema.jsonld</code> and a FIXES.md telling you where each one goes.</p>
 <p style="margin:0 0 12px;"><strong>Then prove it worked.</strong> Deploy the files and press Re-Scan from your report for a before-and-after score. Your ${scans} scans cover both first audits and re-scans across ${plan.domainSlots} domain${plan.domainSlots === 1 ? '' : 's'}, and they are good for ${plan.windowDays} days.</p>
-<p style="margin:0;color:#6b7689;font-size:13px;">Keep this email — it is the only copy of your key we send.</p>`,
+<p style="margin:0;color:#626c7e;font-size:13px;">Keep this email — it is the only copy of your key we send.</p>`,
     `Your Crawlable license key is inside. ${quota}.`,
     footer('transactional', null),
   );
@@ -207,12 +215,12 @@ export function auditReadyEmail(params: {
 <tr>
 <td style="background:#f4f5f7;border-radius:8px;padding:16px;text-align:center;width:50%;">
 <div style="font-size:30px;font-weight:700;color:${INK};line-height:1;">${result.score}</div>
-<div style="font-size:12px;color:#6b7689;margin-top:4px;">Score out of 100 &middot; grade ${result.grade}</div>
+<div style="font-size:12px;color:#626c7e;margin-top:4px;">Score out of 100 &middot; grade ${result.grade}</div>
 </td>
 <td style="width:12px;"></td>
 <td style="background:#f4f5f7;border-radius:8px;padding:16px;text-align:center;width:50%;">
 <div style="font-size:30px;font-weight:700;color:${result.invisiblePercent > 0 ? '#d94f4f' : INK};line-height:1;">${result.invisiblePercent}%</div>
-<div style="font-size:12px;color:#6b7689;margin-top:4px;">Invisible to AI crawlers</div>
+<div style="font-size:12px;color:#626c7e;margin-top:4px;">Invisible to AI crawlers</div>
 </td>
 </tr>
 </table>
@@ -226,7 +234,7 @@ ${
     : ''
 }
 ${button(reportUrl, 'Open the full report')}
-<p style="margin:0;color:#6b7689;font-size:13px;">The report includes your generated llms.txt, robots.txt and JSON-LD, ready to download.</p>`,
+<p style="margin:0;color:#626c7e;font-size:13px;">The report includes your generated llms.txt, robots.txt and JSON-LD, ready to download.</p>`,
     headline,
     footer('transactional', null),
   );
@@ -267,7 +275,7 @@ export function nudgeEmail(params: { licenseTail: string; recipient: string }): 
 <p style="margin:0 0 16px;">The audit takes about a minute and needs nothing but the domain. If you are not sure which site to start with, start with the one you would most want an AI to recommend.</p>
 ${button(dashboard, 'Run your audit')}
 <p style="margin:0 0 12px;"><strong>One thing worth knowing.</strong> With the exception of Google's and Apple's crawlers, AI crawlers do not execute JavaScript. If your site renders client-side, the content you are proud of may not exist as far as they are concerned — and the audit will tell you exactly which pages.</p>
-<p style="margin:0;color:#6b7689;font-size:13px;">Reply to this email if anything is unclear. It reaches a person.</p>`,
+<p style="margin:0;color:#626c7e;font-size:13px;">Reply to this email if anything is unclear. It reaches a person.</p>`,
     'Your Crawlable audit is waiting.',
     footer('commercial', optOut),
   );
@@ -308,7 +316,7 @@ export function scanFollowUpEmail(params: {
     `<p style="margin:0 0 16px;">You scanned <strong>${host}</strong> and it came back at <strong>${params.score}/100</strong>.</p>
 <p style="margin:0 0 16px;">That scan looked at one page. A full audit crawls up to 40, finds which of them AI crawlers cannot read, and generates the files that fix it.</p>
 ${button(pricing, 'See what a full audit covers')}
-<p style="margin:0;color:#6b7689;font-size:13px;">No account needed — you get a license key by email and paste it into the dashboard.</p>`,
+<p style="margin:0;color:#626c7e;font-size:13px;">No account needed — you get a license key by email and paste it into the dashboard.</p>`,
     `${host} scored ${params.score}/100.`,
     footer('commercial', optOut),
   );

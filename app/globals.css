@@ -8,6 +8,14 @@
  * Dark is the default surface and light is a deliberate second theme with its
  * own steps, not an inverted copy. The status colours are the validated data
  * palette from tailwind.config.ts; they appear on marks only, never on text.
+ * Text that needs a status colour uses --ink-good / --ink-warn / --ink-bad.
+ *
+ * Every --ink-* token clears WCAG 2.x AA (4.5:1) against every --surface-*
+ * in its own theme, with a margin so rounding never tips one under.
+ * tests/contrast.test.ts asserts it. --ink-muted was the same #6b7689 in both
+ * themes and failed against every surface in both — 3.86:1 at worst, on every
+ * page of the site. A shared value for two opposite backgrounds cannot be
+ * right for both, which is why each theme now has its own.
  */
 
 :root {
@@ -19,7 +27,10 @@
 
   --ink-primary: #e6e9ef;
   --ink-secondary: #98a1b2;
-  --ink-muted: #6b7689;
+  --ink-muted: #788396;
+  --ink-bad: #da5564;
+  --ink-good: #1fa56f;
+  --ink-warn: #b8850a;
 
   --accent: #3ddc97;
   --accent-ink: #08090c;
@@ -40,9 +51,12 @@
 
   --ink-primary: #12151c;
   --ink-secondary: #4b5567;
-  --ink-muted: #6b7689;
+  --ink-muted: #626c7e;
+  --ink-bad: #c22f43;
+  --ink-good: #0d7b50;
+  --ink-warn: #916309;
 
-  --accent: #0f8a5a;
+  --accent: #0d7b50;
   --accent-ink: #ffffff;
 
   --data-good: #0f8a5a;
@@ -62,9 +76,12 @@
 
     --ink-primary: #12151c;
     --ink-secondary: #4b5567;
-    --ink-muted: #6b7689;
+    --ink-muted: #626c7e;
+    --ink-bad: #c22f43;
+    --ink-good: #0d7b50;
+    --ink-warn: #916309;
 
-    --accent: #0f8a5a;
+    --accent: #0d7b50;
     --accent-ink: #ffffff;
 
     --data-good: #0f8a5a;
@@ -177,6 +194,26 @@
 
   .field::placeholder {
     color: var(--ink-muted);
+  }
+
+  /*
+   * The focus ring for text fields.
+   *
+   * Every .field used to carry Tailwind's outline-none, which lives in the
+   * utilities layer and therefore beats the global :focus-visible ring in the
+   * base layer outright. The result was an input that showed nothing at all
+   * when a keyboard user tabbed into it — measured as a 2px outline in
+   * rgba(0,0,0,0) on the scanner, which is the one field the whole site
+   * exists to get people to use. WCAG 2.4.7 (Focus Visible), and the first
+   * thing an accessibility audit checks.
+   *
+   * This keeps the global ring and only restates the radius, because the base
+   * rule's 4px would otherwise square off the field's 10px corners on focus.
+   * The border also takes the accent, so the state reads even at a glance.
+   */
+  .field:focus-visible {
+    border-color: var(--accent);
+    border-radius: 10px;
   }
 
   /*

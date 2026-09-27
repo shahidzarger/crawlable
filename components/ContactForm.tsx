@@ -119,7 +119,7 @@ export function ContactForm() {
           onChange={(event) => setName(event.target.value)}
           disabled={submitting}
           placeholder="Jordan Reyes"
-          className="field mt-2 w-full px-4 py-3 text-base outline-none disabled:opacity-60"
+          className="field mt-2 w-full px-4 py-3 text-base disabled:opacity-60"
         />
       </div>
 
@@ -139,7 +139,7 @@ export function ContactForm() {
           onChange={(event) => setEmail(event.target.value)}
           disabled={submitting}
           placeholder="you@company.com"
-          className="field mt-2 w-full px-4 py-3 text-base outline-none disabled:opacity-60"
+          className="field mt-2 w-full px-4 py-3 text-base disabled:opacity-60"
         />
         <p className="mt-2 text-xs ink-muted">
           This is where the reply goes, so use an address you actually read.
@@ -165,7 +165,7 @@ export function ContactForm() {
           onChange={(event) => setMessage(event.target.value)}
           disabled={submitting}
           placeholder="If this is about an audit, include the domain you scanned and your license key's last four characters — it saves a round trip."
-          className="field mt-2 w-full resize-y px-4 py-3 text-base leading-relaxed outline-none disabled:opacity-60"
+          className="field mt-2 w-full resize-y px-4 py-3 text-base leading-relaxed disabled:opacity-60"
         />
       </div>
 
