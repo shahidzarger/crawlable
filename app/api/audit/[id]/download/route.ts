@@ -54,6 +54,23 @@ export async function GET(
   if (record.mode !== 'audit') {
     return fail('scan-has-no-files', 'Free scans do not include generated files.', 403);
   }
+  /*
+   * A report no licence owns is never downloadable.
+   *
+   * This is the monetisation boundary during the public beta, when any
+   * visitor can run a full 40-page audit: those records are stored with no
+   * owning licence and with the generated files removed. The ownership
+   * comparison below already refuses them, because null never equals a key
+   * hash — but that is incidental, and a boundary this important should not
+   * rest on a coincidence of comparison.
+   */
+  if (record.licenseKeyHash === null) {
+    return fail(
+      'no-entitlement',
+      'This report was run on the free tier, so it has no Fix Kit. Buy a plan and audit the domain on your licence to generate one.',
+      403,
+    );
+  }
   if (record.licenseKeyHash !== keyHash) {
     return fail('not-your-audit', 'This report belongs to a different license.', 403);
   }

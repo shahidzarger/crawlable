@@ -6,6 +6,8 @@ import { PLANS, type Plan } from '@/lib/plans';
 import { SEVERITY } from '@/components/report/severity';
 import { directCheckoutUrl } from '@/lib/checkout-links';
 import { SEO_SUITE_PRICE_PROSE } from '@/lib/benchmarks';
+import { betaFreeDeepAudit } from '@/lib/config';
+import { PAGE_LIMITS } from '@/lib/audit/types-limits';
 
 /** Pricing table. Selecting a plan redirects to the hosted checkout. */
 export function Pricing() {
@@ -91,6 +93,46 @@ export function Pricing() {
           hands you the files that fix it, and re-scans to prove they worked.
         </p>
       </div>
+
+      {/*
+        What the free tier includes, stated next to what the paid tiers add.
+        Without this the badge on the hero promises a free deep audit and the
+        pricing table appears to contradict it.
+      */}
+      {betaFreeDeepAudit() ? (
+        <div
+          className="mx-auto mt-8 max-w-3xl rounded-xl border p-5 text-sm"
+          style={{ borderColor: 'var(--accent)' }}
+        >
+          <p className="font-semibold">
+            <span aria-hidden>🚀</span> Public Beta — the diagnostic is free
+          </p>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider ink-muted">
+                Free Beta Audit
+              </p>
+              <ul className="mt-2 space-y-1 ink-secondary">
+                <li>Full {PAGE_LIMITS.audit}-page diagnostic</li>
+                <li>Raw-HTML extraction analysis</li>
+                <li>AI crawler access checks</li>
+                <li>No signup, no licence key</li>
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider ink-muted">
+                Fix Kit plans below
+              </p>
+              <ul className="mt-2 space-y-1 ink-secondary">
+                <li>Automated code generation</li>
+                <li>Downloadable .zip Fix Kit</li>
+                <li>Re-scan validation credits</li>
+                <li>Domain tracking across a portfolio</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <div

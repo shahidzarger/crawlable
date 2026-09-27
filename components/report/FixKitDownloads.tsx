@@ -36,9 +36,19 @@ const FILES = FIX_KIT_FILES;
 export function FixKitDownloads({
   auditId,
   siteUrl,
+  /**
+   * True when no licence owns this report — a free beta audit.
+   *
+   * Decided on the server from the stored record, not inferred from whether
+   * a key happens to sit in this browser's localStorage. A visitor who has
+   * bought a plan still cannot unlock somebody else's free report, and the
+   * download route refuses it regardless of what this component renders.
+   */
+  unowned = false,
 }: {
   auditId: string;
   siteUrl: string;
+  unowned?: boolean;
 }) {
   const [licenseKey, setLicenseKey] = useState('');
   const [draftKey, setDraftKey] = useState('');
@@ -92,6 +102,8 @@ export function FixKitDownloads({
       </section>
     );
   }
+
+  if (unowned) return <LockedFixKit siteUrl={siteUrl} />;
 
   if (!licenseKey) {
     return (
@@ -206,6 +218,111 @@ export function FixKitDownloads({
         <Link href="/dashboard" className="underline underline-offset-4">
           All your audits
         </Link>
+      </p>
+    </section>
+  );
+}
+
+/**
+ * The paid boundary, as the visitor sees it.
+ *
+ * Shown for a report that no licence owns. It states plainly what the free
+ * audit did and did not include, rather than teasing a download that would
+ * 403 — a locked button that fails on click is worse than an honest one.
+ */
+function LockedFixKit({ siteUrl }: { siteUrl: string }) {
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  async function notify(event: React.FormEvent) {
+    event.preventDefault();
+    if (!email.trim() || state === 'sending') return;
+    setState('sending');
+
+    try {
+      const response = await fetch('/api/notify-me', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), context: `fix-kit report for ${siteUrl}` }),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        setMessage(payload?.error ?? 'Could not record that. Try again shortly.');
+        setState('error');
+        return;
+      }
+      setState('done');
+    } catch {
+      setMessage('Could not reach the server. Try again shortly.');
+      setState('error');
+    }
+  }
+
+  return (
+    <section className="surface-card p-6" style={{ borderColor: 'var(--accent)' }}>
+      <h2 className="text-lg font-semibold tracking-tight">Unlock Production Fix Kit (.zip)</h2>
+      <p className="mt-2 text-sm leading-relaxed ink-secondary">
+        Your audit above is complete and yours to keep. The Fix Kit is the other half: five
+        production-ready files generated from this crawl —{' '}
+        <code className="font-mono text-xs">robots.txt</code>,{' '}
+        <code className="font-mono text-xs">sitemap.xml</code>,{' '}
+        <code className="font-mono text-xs">llms.txt</code>,{' '}
+        <code className="font-mono text-xs">schema.jsonld</code> and a{' '}
+        <code className="font-mono text-xs">FIXES.md</code> telling you where each one goes.
+      </p>
+
+      {state === 'done' ? (
+        <p className="mt-5 text-sm" role="status">
+          <span aria-hidden style={{ color: 'var(--data-good)' }}>
+            ✓
+          </span>{' '}
+          You are on the list. We will email you the moment Fix Kits open.
+        </p>
+      ) : (
+        <>
+          <p className="mt-4 text-sm font-medium">
+            Store launching shortly — enter your email to be notified when Fix Kits open
+          </p>
+          <form onSubmit={notify} className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <label htmlFor="notify-email" className="sr-only">
+              Email address
+            </label>
+            <input
+              id="notify-email"
+              type="email"
+              required
+              spellCheck={false}
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              disabled={state === 'sending'}
+              placeholder="you@company.com"
+              className="field flex-1 px-4 py-2.5 text-sm outline-none disabled:opacity-60"
+            />
+            <button
+              type="submit"
+              disabled={state === 'sending' || email.trim().length === 0}
+              aria-busy={state === 'sending'}
+              className="btn-primary whitespace-nowrap px-5 py-2.5 text-sm"
+            >
+              {state === 'sending' ? 'Adding…' : 'Notify me'}
+            </button>
+          </form>
+          {state === 'error' ? (
+            <p role="alert" className="mt-2 text-sm" style={{ color: 'var(--data-bad)' }}>
+              {message}
+            </p>
+          ) : null}
+        </>
+      )}
+
+      <p className="mt-4 text-xs ink-muted">
+        Already have a licence key? Run this domain from your{' '}
+        <Link href="/dashboard" className="underline underline-offset-4">
+          dashboard
+        </Link>{' '}
+        to generate its Fix Kit — a free audit cannot be converted after the fact.
       </p>
     </section>
   );

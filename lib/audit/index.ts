@@ -8,6 +8,7 @@ import { generateAll } from './generators';
 import { FetchError, assertPublicHost, normaliseUrl, toOrigin } from './fetcher';
 import { dedupeByUrl, dedupeUrls, normaliseForCrawl } from './url';
 import type { AuditResult, AuditSummary } from './types';
+import { PAGE_LIMITS } from './types-limits';
 
 export * from './types';
 export { AI_CRAWLERS, VISIBILITY_CRITICAL_CRAWLERS, NON_RENDERING_CRAWLERS } from './crawlers';
@@ -36,10 +37,9 @@ const CRAWL_CONCURRENCY = 4;
  */
 export const AUDIT_BUDGET_MS = 45_000;
 
-export const PAGE_LIMITS = {
-  scan: 1,
-  audit: 40,
-} as const;
+// Defined in a dependency-free module so Client Components can read the cap
+// without importing the crawler; re-exported here for every existing caller.
+export { PAGE_LIMITS } from './types-limits';
 
 export interface RunAuditOptions {
   url: string;

@@ -111,7 +111,16 @@ export default async function AuditReportPage({
           </section>
         ) : (
           <>
-            <FixKitDownloads auditId={record.id} siteUrl={result.siteUrl} />
+            <FixKitDownloads
+              auditId={record.id}
+              siteUrl={result.siteUrl}
+              /*
+                Ownership is read from the stored record on the server. A free
+                beta audit has no owning licence, so it gets the locked panel
+                whatever key the browser happens to be holding.
+              */
+              unowned={record.licenseKeyHash === null}
+            />
             {/*
               Below the Fix Kit on purpose: the sequence the product sells is
               download, deploy, verify, and the page should read in that order.

@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { AuditResult } from '@/lib/audit/types';
+import { betaFreeDeepAudit } from '@/lib/config';
+import { PAGE_LIMITS } from '@/lib/audit/types-limits';
 import { prioritisedFindings } from '@/lib/audit/scoring';
 import { ScoreHero } from '@/components/report/ScoreHero';
 import { SEVERITY, scoreColor } from '@/components/report/severity';
@@ -31,6 +33,7 @@ const STEPS = [
 ];
 
 export function Scanner() {
+  const deep = betaFreeDeepAudit();
   const [url, setUrl] = useState('');
   const [state, setState] = useState<State>({ phase: 'idle' });
   const [step, setStep] = useState(0);
@@ -105,7 +108,14 @@ export function Scanner() {
       </form>
 
       <p className="mt-3 text-xs ink-muted">
-        One page, no signup, about twenty seconds. We fetch your HTML exactly as GPTBot would.
+        {/*
+          Conditional because the unconditional version was a false claim the
+          moment the beta flag went on: it told every visitor the scan covered
+          one page while the crawler was doing forty.
+        */}
+        {deep
+          ? `Up to ${PAGE_LIMITS.audit} pages, no signup, about a minute. We fetch your HTML exactly as GPTBot would.`
+          : 'One page, no signup, about twenty seconds. We fetch your HTML exactly as GPTBot would.'}
       </p>
 
       {state.phase === 'scanning' ? <ScanProgress step={step} /> : null}
@@ -161,6 +171,9 @@ function ScanProgress({ step }: { step: number }) {
 }
 
 function ScanResult({ result }: { result: AuditResult }) {
+  // Read here too: this is a separate component, and the flag decides whether
+  // the upsell asks for more pages or for the Fix Kit.
+  const deep = betaFreeDeepAudit();
   const findings = prioritisedFindings(result.checks)
     .filter((item) => item.severity !== 'pass')
     .slice(0, 4);
@@ -180,7 +193,9 @@ function ScanResult({ result }: { result: AuditResult }) {
 
       {page && !page.error ? (
         <div className="surface-card p-5">
-          <h3 className="text-sm font-semibold">What a crawler read on this page</h3>
+          <h3 className="text-sm font-semibold">
+            {deep ? 'What a crawler read on your entry page' : 'What a crawler read on this page'}
+          </h3>
           <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
             <div>
               <dt className="text-xs ink-muted">Readable words</dt>
@@ -214,7 +229,9 @@ function ScanResult({ result }: { result: AuditResult }) {
 
       {findings.length > 0 ? (
         <div className="surface-card p-5">
-          <h3 className="text-sm font-semibold">Top findings on this page</h3>
+          <h3 className="text-sm font-semibold">
+            {deep ? `Top findings across ${result.pagesAudited} pages` : 'Top findings on this page'}
+          </h3>
           <ul className="mt-3 space-y-3">
             {findings.map((item) => {
               const style = SEVERITY[item.severity];
@@ -239,20 +256,39 @@ function ScanResult({ result }: { result: AuditResult }) {
         style={{ borderColor: 'var(--border-strong)' }}
       >
         <h3 className="font-semibold">
-          That was one page. Your site has more.
+          {deep
+            ? 'You have the diagnosis. The Fix Kit is the cure.'
+            : 'That was one page. Your site has more.'}
         </h3>
         <p className="mt-1.5 text-sm ink-secondary">
-          A full audit crawls up to 40 pages, tells you which ones AI crawlers cannot read, and
-          generates your <code className="font-mono text-xs">llms.txt</code>,{' '}
-          <code className="font-mono text-xs">robots.txt</code> and the JSON-LD you are missing —
-          ready to paste.
+          {deep ? (
+            <>
+              This audit covered {result.pagesAudited}{' '}
+              {result.pagesAudited === 1 ? 'page' : 'pages'} and is yours to keep. A Fix Kit
+              turns it into five production-ready files —{' '}
+              <code className="font-mono text-xs">robots.txt</code>,{' '}
+              <code className="font-mono text-xs">sitemap.xml</code>,{' '}
+              <code className="font-mono text-xs">llms.txt</code>,{' '}
+              <code className="font-mono text-xs">schema.jsonld</code> and{' '}
+              <code className="font-mono text-xs">FIXES.md</code> — plus re-scans to prove
+              they worked.
+            </>
+          ) : (
+            <>
+              A full audit crawls up to {PAGE_LIMITS.audit} pages, tells you which ones AI
+              crawlers cannot read, and generates your{' '}
+              <code className="font-mono text-xs">llms.txt</code>,{' '}
+              <code className="font-mono text-xs">robots.txt</code> and the JSON-LD you are
+              missing — ready to paste.
+            </>
+          )}
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Link href="/#pricing" className="btn-primary px-5 py-2.5 text-sm">
-            Run the full audit — $29
+            {deep ? 'Get the Fix Kit — $29' : 'Run the full audit — $29'}
           </Link>
           <span className="text-xs ink-muted">
-            Score {result.score}/100 on this page ·{' '}
+            Score {result.score}/100 {deep ? 'across your site' : 'on this page'} ·{' '}
             <span style={{ color: scoreColor(result.score) }}>grade {result.grade}</span>
           </span>
         </div>

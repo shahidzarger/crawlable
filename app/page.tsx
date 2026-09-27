@@ -5,6 +5,8 @@ import { Pricing } from '@/components/Pricing';
 import { AI_CRAWLERS, NON_RENDERING_CRAWLERS } from '@/lib/audit/crawlers';
 import { FAQS } from '@/content/faq';
 import { SEO_SUITE_PRICE_PROSE, SEO_SUITE_PRICE_RANGE } from '@/lib/benchmarks';
+import { betaFreeDeepAudit } from '@/lib/config';
+import { PAGE_LIMITS } from '@/lib/audit/types-limits';
 import { serialiseJsonLd } from '@/lib/seo/schema';
 
 /*
@@ -87,6 +89,27 @@ export default function HomePage() {
               </p>
 
               <div className="mt-8 max-w-xl">
+                {/*
+                  The launch badge sits directly above the input, which is
+                  where the offer has to be read for it to change behaviour.
+                  It disappears with the flag, and so does every claim in it.
+                */}
+                {betaFreeDeepAudit() ? (
+                  <div className="mb-4">
+                    <p
+                      className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
+                      style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
+                    >
+                      <span aria-hidden>🚀</span>
+                      Launch Special: Free Deep Audit (Up to {PAGE_LIMITS.audit} Pages)
+                    </p>
+                    <p className="mt-2 text-xs leading-relaxed ink-secondary">
+                      Normally limited to single-page audits on the free tier. Full{' '}
+                      {PAGE_LIMITS.audit}-page crawler enabled during our Public Beta.
+                    </p>
+                  </div>
+                ) : null}
+
                 <Scanner />
                 <p className="mt-4 text-sm ink-muted">
                   Engineered for web apps, modern websites, e-commerce, and agencies.
