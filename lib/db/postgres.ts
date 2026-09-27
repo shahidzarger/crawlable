@@ -145,6 +145,21 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 );
 
 CREATE INDEX IF NOT EXISTS rate_limits_bucket_idx ON rate_limits (bucket, hit_at DESC);
+
+/*
+ * Email opt-outs.
+ *
+ * The address is the primary key and is stored lowercased, so a second
+ * unsubscribe is a no-op rather than a duplicate row, and a later purchase
+ * from the same address stays suppressed. Deliberately never deleted by the
+ * app: re-subscribing someone because a row aged out is the failure this
+ * table exists to prevent.
+ */
+CREATE TABLE IF NOT EXISTS email_optouts (
+  email      TEXT PRIMARY KEY,
+  source     TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 `;
 
 interface LicenseRow {
@@ -482,6 +497,28 @@ export class PostgresStore implements Store {
       invisiblePercent: row.invisible_percent,
       pagesAudited: row.result.pagesAudited,
     }));
+  }
+
+  async suppressEmail(email: string, source: string): Promise<void> {
+    const address = email.trim().toLowerCase();
+    /*
+     * ON CONFLICT keeps the FIRST opt-out's timestamp and source. When someone
+     * unsubscribes twice, the date that matters for "did we honour it in time"
+     * is the date they first asked.
+     */
+    await this.sql`
+      INSERT INTO email_optouts (email, source)
+      VALUES (${address}, ${source})
+      ON CONFLICT (email) DO NOTHING
+    `;
+  }
+
+  async isEmailSuppressed(email: string): Promise<boolean> {
+    const address = email.trim().toLowerCase();
+    const rows = await this.sql<{ email: string }[]>`
+      SELECT email FROM email_optouts WHERE email = ${address} LIMIT 1
+    `;
+    return rows.length > 0;
   }
 
   async rateLimit(bucket: string, limit: number, windowSeconds: number): Promise<boolean> {

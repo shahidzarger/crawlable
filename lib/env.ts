@@ -46,6 +46,31 @@ const schema = z.object({
    * address goes in replyTo instead, which is what makes Reply work.
    */
   CONTACT_EMAIL_FROM: z.string().email().default('support@usecrawlable.com'),
+
+  /*
+   * Trader identity. Deliberately has no default.
+   *
+   * CAN-SPAM requires a valid physical postal address in every commercial
+   * email (15 U.S.C. 7704(a)(5)), and consumer-protection rules in the UAE and
+   * the EU require a trader's legal name and address to be identifiable on a
+   * commercial site. Inventing either is worse than leaving it unset, so a
+   * missing value makes commercial email refuse to send rather than send
+   * something non-compliant, and the site footer simply omits the block.
+   */
+  BUSINESS_LEGAL_NAME: z.string().min(1).optional(),
+  /** One line, comma-separated, e.g. "Office 12, Some Tower, Dubai, UAE". */
+  BUSINESS_POSTAL_ADDRESS: z.string().min(1).optional(),
+  /** Trade licence or company registration number, shown alongside the name. */
+  BUSINESS_REGISTRATION: z.string().min(1).optional(),
+
+  /**
+   * Signs unsubscribe tokens. Min 16 chars, no default.
+   *
+   * Without it an unsubscribe link cannot be verified, so it is not offered —
+   * and a commercial email with no working opt-out is precisely the violation
+   * this exists to prevent. Commercial sends therefore fail closed.
+   */
+  UNSUBSCRIBE_SECRET: z.string().min(16).optional(),
 });
 
 export type Env = z.infer<typeof schema>;

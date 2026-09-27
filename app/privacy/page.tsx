@@ -64,7 +64,10 @@ export default function PrivacyPage() {
           <li>No card numbers or payment details; those stay with Lemon Squeezy.</li>
           <li>No third-party analytics, advertising pixels or session recording.</li>
           <li>No cross-site tracking, and no sale or sharing of data with data brokers.</li>
-          <li>No marketing email unless you ask for it. Transactional email only.</li>
+          <li>
+            No advertising email to addresses that have opted out, and no sale or rental
+            of any address to anyone.
+          </li>
         </ul>
       </Clause>
 
@@ -84,7 +87,31 @@ export default function PrivacyPage() {
         </p>
       </Clause>
 
-      <Clause n={4} heading="How long we keep things">
+      <Clause n={4} heading="Email we send, and how to stop it">
+        <p>
+          Two kinds, and they are treated differently on purpose.
+        </p>
+        <p>
+          <strong>Service email</strong> — your licence key, a notice that an audit has
+          finished. These complete something you started and are sent to the address that
+          made the purchase or ran the audit. There is no unsubscribe on these, because
+          opting out of them would mean losing the licence key you paid for.
+        </p>
+        <p>
+          <strong>Promotional email</strong> — anything encouraging you to use or buy
+          more. Every one of these carries a working one-click unsubscribe link and our
+          postal address. Unsubscribing is immediate, permanent, and needs no reply from
+          us; we keep your address on a suppression list precisely so that a later
+          purchase does not quietly re-subscribe you.
+        </p>
+        <p>
+          We never sell, rent or share email addresses for anyone else&apos;s marketing.
+          If you want removing from service email too — which means giving up licence and
+          report delivery — email us and say so.
+        </p>
+      </Clause>
+
+      <Clause n={5} heading="How long we keep things">
         <div className="overflow-x-auto">
           <table className="mt-2 w-full border-collapse text-sm">
             <thead>
@@ -125,7 +152,7 @@ export default function PrivacyPage() {
         </div>
       </Clause>
 
-      <Clause n={5} heading="Who processes data on our behalf">
+      <Clause n={6} heading="Who processes data on our behalf">
         <ul className="ml-5 list-disc space-y-1">
           <li>
             <strong>Vercel</strong> — hosting and server logs.
@@ -141,6 +168,10 @@ export default function PrivacyPage() {
             <strong>Resend</strong> — delivery of transactional email such as your licence
             key and audit-ready notice.
           </li>
+          <li>
+            <strong>Brevo</strong> — relays contact-form messages and launch-notification
+            signups to our support inbox.
+          </li>
         </ul>
         <p>
           Each receives only what it needs for its function. Data may be processed in the
@@ -148,7 +179,7 @@ export default function PrivacyPage() {
         </p>
       </Clause>
 
-      <Clause n={6} heading="Your rights">
+      <Clause n={7} heading="Your rights">
         <p>
           You may ask what we hold about you, ask for a copy, ask for it to be corrected,
           or ask for it to be deleted. Email{' '}

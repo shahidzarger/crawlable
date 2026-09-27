@@ -164,6 +164,20 @@ export interface Store {
   getAudit(id: string): Promise<AuditRecord | null>;
   listAudits(licenseKeyHash: string, limit?: number): Promise<AuditSummary[]>;
 
+  /**
+   * Email suppression, checked before every commercial send.
+   *
+   * An opt-out has to outlive the thing that caused it, so this is its own
+   * table keyed by address rather than a flag on a licence: someone who
+   * unsubscribes after a free scan has no licence row to flag, and someone who
+   * buys again later must stay unsubscribed. CAN-SPAM requires the opt-out to
+   * be honoured within ten business days and the mechanism to keep working for
+   * at least thirty days after a send; a durable list satisfies both without
+   * anyone having to remember to prune it.
+   */
+  suppressEmail(email: string, source: string): Promise<void>;
+  isEmailSuppressed(email: string): Promise<boolean>;
+
   /** Sliding-window rate limit. Returns false when the caller is over budget. */
   rateLimit(bucket: string, limit: number, windowSeconds: number): Promise<boolean>;
 

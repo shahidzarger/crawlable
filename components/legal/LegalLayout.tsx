@@ -12,7 +12,7 @@ import { SUPPORT_EMAIL } from '@/lib/support';
  */
 
 /** Single source of truth for the date shown on every legal page. */
-export const LEGAL_EFFECTIVE_DATE = '22 September 2026';
+export const LEGAL_EFFECTIVE_DATE = '28 September 2026';
 
 // Re-exported so the many existing importers keep working; the value itself
 // now lives in lib/support.ts, which the schema module can read without

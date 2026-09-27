@@ -52,7 +52,7 @@ export async function GET(request: Request): Promise<Response> {
       continue;
     }
 
-    const result = await sendEmail(license.email, nudgeEmail({ licenseTail: license.keyTail }));
+    const result = await sendEmail(license.email, nudgeEmail({ licenseTail: license.keyTail, recipient: license.email }));
 
     if (result.sent) {
       await db.markNudged(license.keyHash);

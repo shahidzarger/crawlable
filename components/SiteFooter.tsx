@@ -1,9 +1,21 @@
 import Link from 'next/link';
 import { AI_CRAWLERS } from '@/lib/audit/crawlers';
 import { PLATFORMS } from '@/content/platforms';
+import { identityLine } from '@/lib/legal';
 
 export function SiteFooter() {
   const year = new Date().getFullYear();
+  /*
+   * Trader identity, when it has been configured.
+   *
+   * A commercial site is expected to make its operator identifiable — UAE
+   * consumer-protection rules and EU distance-selling rules both want a legal
+   * name and a contactable address before a purchase, and the same address is
+   * what CAN-SPAM requires in marketing email. It renders only when set,
+   * because a placeholder address would be a false statement about who is
+   * selling rather than a missing one.
+   */
+  const identity = identityLine();
 
   return (
     <footer className="mt-24 border-t">
@@ -126,9 +138,12 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col gap-3 border-t pt-6 text-xs ink-muted sm:flex-row sm:items-center sm:justify-between">
-          <p>© {year} Crawlable. All rights reserved.</p>
-          <p>Crawls are rate-limited and respect your robots.txt.</p>
+        <div className="mt-10 border-t pt-6 text-xs ink-muted">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p>© {year} Crawlable. All rights reserved.</p>
+            <p>Crawls are rate-limited and respect your robots.txt.</p>
+          </div>
+          {identity ? <address className="mt-3 not-italic">{identity}</address> : null}
         </div>
       </div>
     </footer>

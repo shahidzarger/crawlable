@@ -101,7 +101,25 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n={5} heading="Licence keys and acceptable use">
+      <Clause n={5} heading="Who may use this">
+        <p>
+          Crawlable is a tool for people who run websites, sold to businesses and
+          professionals. By using it you confirm you are at least 18, or the age of
+          majority where you live if that is higher, and that if you are acting for a
+          company you are authorised to agree to these terms on its behalf.
+        </p>
+        <Important>
+          <p>
+            We deliberately do <strong>not</strong> ask for your date of birth, and we ask
+            nothing about children. The service is not directed to children, we have no
+            reason to believe anyone under 13 uses it, and collecting ages would mean
+            holding personal data we have no use for. If you believe a child has submitted
+            information to us, tell us and we will delete it.
+          </p>
+        </Important>
+      </Clause>
+
+      <Clause n={6} heading="Licence keys and acceptable use">
         <p>
           A licence key is your credential. We store only a SHA-256 hash of it and show
           only its last four characters, which means we cannot recover a lost key for you
@@ -131,7 +149,7 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n={6} heading="Availability">
+      <Clause n={7} heading="Availability">
         <p>
           The service is provided as-is. We do not offer an uptime commitment. Audits
           depend on third-party infrastructure and on the responsiveness of the site being
@@ -141,7 +159,7 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n={7} heading="Limitation of liability">
+      <Clause n={8} heading="Limitation of liability">
         <p>
           To the fullest extent permitted by law, our total liability arising out of or
           relating to the service is limited to the amount you paid us in the twelve
@@ -168,7 +186,7 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n={8} heading="Payment, refunds and changes">
+      <Clause n={9} heading="Payment, refunds and changes">
         <p>
           Payments are processed by Lemon Squeezy, which acts as merchant of record and is
           the seller for your transaction. Their terms govern the payment itself, and they

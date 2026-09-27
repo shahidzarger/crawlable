@@ -1,4 +1,6 @@
 import { siteUrl } from '@/lib/env';
+import { businessIdentity } from '@/lib/legal';
+import { unsubscribeUrl } from './unsubscribe';
 import type { AuditResult } from '@/lib/audit/types';
 import type { Plan } from '@/lib/plans';
 
@@ -10,16 +12,95 @@ import type { Plan } from '@/lib/plans';
  * which is what raises deliverability on a new sending domain.
  */
 
+/**
+ * Which CAN-SPAM regime a message falls under.
+ *
+ * The statute turns on the message's primary purpose, not on who sent it.
+ *   - 'transactional' — completes or services a transaction the recipient
+ *     already entered: a licence key, an audit-ready notice. Needs only
+ *     truthful headers. There is nothing to unsubscribe from, and offering it
+ *     would mean someone could opt out of their own receipt.
+ *   - 'commercial' — advertises or promotes. A scan follow-up pointing at the
+ *     pricing page is commercial however useful it is. Needs a postal
+ *     address, a working opt-out, and honouring within ten business days.
+ *
+ * Stated per template rather than inferred, because getting it wrong in the
+ * direction of "transactional" is the expensive mistake and a guess should not
+ * be what decides it.
+ */
+export type EmailKind = 'transactional' | 'commercial';
+
 export interface EmailContent {
   subject: string;
   html: string;
   text: string;
+  kind: EmailKind;
+  /**
+   * Set on commercial mail so the sender can add the List-Unsubscribe headers
+   * that mailbox providers now require of bulk senders, and so the footer and
+   * the headers cannot disagree about where the opt-out points.
+   */
+  unsubscribeUrl?: string;
 }
 
 const BRAND = '#3ddc97';
 const INK = '#0d0f14';
 
-function shell(body: string, preheader: string): string {
+/**
+ * The footer every message carries.
+ *
+ * The postal address is not decoration: CAN-SPAM requires a valid physical
+ * address in commercial mail, and `canSendCommercialEmail` refuses the send
+ * when it is missing, so a commercial message can never reach this function
+ * without one. Transactional mail prints it too when it is configured, which
+ * costs nothing and is what a customer looks for when they want to know who
+ * charged them.
+ *
+ * "Reply to this email if you would rather not" used to stand in for an
+ * opt-out. It is not one — the statute wants a mechanism the recipient can
+ * operate, not a request a human has to action.
+ */
+function footer(kind: EmailKind, unsubscribe: string | null): string {
+  const { legalName, postalAddress, registration } = businessIdentity();
+  const lines: string[] = [
+    `Crawlable &middot; <a href="${siteUrl()}" style="color:#6b7689;">${siteUrl().replace(/^https?:\/\//, '')}</a>`,
+  ];
+
+  if (legalName && postalAddress) {
+    lines.push(
+      `${legalName}${registration ? ` &middot; Licence ${registration}` : ''}<br>${postalAddress}`,
+    );
+  }
+
+  if (kind === 'commercial' && unsubscribe) {
+    lines.push(
+      `You are receiving this because you ran a scan or bought an audit. <a href="${unsubscribe}" style="color:#6b7689;text-decoration:underline;">Unsubscribe</a> and we will stop sending these.`,
+    );
+  } else {
+    lines.push(
+      'This is a service message about your purchase or audit, not marketing. Reply if anything is unclear.',
+    );
+  }
+
+  return lines.join('<br><br>');
+}
+
+/** The same footer, for the text/plain part. */
+function footerText(kind: EmailKind, unsubscribe: string | null): string {
+  const { legalName, postalAddress, registration } = businessIdentity();
+  const lines = [`Crawlable — ${siteUrl()}`];
+  if (legalName && postalAddress) {
+    lines.push(`${legalName}${registration ? ` (Licence ${registration})` : ''}`);
+    lines.push(postalAddress);
+  }
+  if (kind === 'commercial' && unsubscribe) {
+    lines.push('');
+    lines.push(`Unsubscribe: ${unsubscribe}`);
+  }
+  return lines.join('\n');
+}
+
+function shell(body: string, preheader: string, footerHtml: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -40,8 +121,7 @@ function shell(body: string, preheader: string): string {
 ${body}
 </td></tr>
 <tr><td style="padding:18px 28px;background:#fafbfc;border-top:1px solid #e4e6ea;color:#6b7689;font-size:12px;line-height:1.5;">
-Crawlable &middot; <a href="${siteUrl()}" style="color:#6b7689;">${siteUrl().replace(/^https?:\/\//, '')}</a><br>
-You are receiving this because you bought or ran an audit. Reply to this email if you would rather not receive them.
+${footerHtml}
 </td></tr>
 </table>
 </td></tr>
@@ -79,6 +159,7 @@ ${button(dashboard, 'Run your first audit')}
 <p style="margin:0 0 12px;"><strong>Then prove it worked.</strong> Deploy the files and press Re-Scan from your report for a before-and-after score. Your ${scans} scans cover both first audits and re-scans across ${plan.domainSlots} domain${plan.domainSlots === 1 ? '' : 's'}, and they are good for ${plan.windowDays} days.</p>
 <p style="margin:0;color:#6b7689;font-size:13px;">Keep this email — it is the only copy of your key we send.</p>`,
     `Your Crawlable license key is inside. ${quota}.`,
+    footer('transactional', null),
   );
 
   const text = `Your ${plan.name} is active. ${quota}, ready to run.
@@ -91,12 +172,13 @@ Paste the key into the dashboard, enter a site, and the audit crawls up to 40 pa
 
 Keep this email — it is the only copy of your key we send.
 
-Crawlable — ${siteUrl()}`;
+${footerText('transactional', null)}`;
 
   return {
     subject: `Your Crawlable license key (${plan.name})`,
     html,
     text,
+    kind: 'transactional',
   };
 }
 
@@ -146,6 +228,7 @@ ${
 ${button(reportUrl, 'Open the full report')}
 <p style="margin:0;color:#6b7689;font-size:13px;">The report includes your generated llms.txt, robots.txt and JSON-LD, ready to download.</p>`,
     headline,
+    footer('transactional', null),
   );
 
   const text = `The audit of ${host} is ready.
@@ -157,18 +240,27 @@ ${headline}
 ${criticals.length > 0 ? `\nFix these first:\n${criticals.slice(0, 3).map((f) => `- ${f.title}`).join('\n')}\n` : ''}
 Open the full report: ${reportUrl}
 
-${from} — ${siteUrl()}`;
+${footerText('transactional', null)}`;
 
   return {
     subject: `${host}: ${result.score}/100 AI readability${result.invisiblePercent > 0 ? ` — ${result.invisiblePercent}% invisible` : ''}`,
     html,
     text,
+    kind: 'transactional',
   };
 }
 
-/** Day-2 follow-up for buyers who have not run an audit yet. */
-export function nudgeEmail(params: { licenseTail: string }): EmailContent {
+/**
+ * Day-2 follow-up for buyers who have not run an audit yet.
+ *
+ * Commercial, not transactional: it promotes using the product rather than
+ * servicing a transaction already under way, and the safe classification is
+ * the one that carries the opt-out. It therefore needs the recipient's
+ * address to sign an unsubscribe link for it.
+ */
+export function nudgeEmail(params: { licenseTail: string; recipient: string }): EmailContent {
   const dashboard = `${siteUrl()}/dashboard`;
+  const optOut = unsubscribeUrl(params.recipient);
 
   const html = shell(
     `<p style="margin:0 0 16px;">Your license (ending <strong>${params.licenseTail}</strong>) has not been used yet.</p>
@@ -177,6 +269,7 @@ ${button(dashboard, 'Run your audit')}
 <p style="margin:0 0 12px;"><strong>One thing worth knowing.</strong> With the exception of Google's and Apple's crawlers, AI crawlers do not execute JavaScript. If your site renders client-side, the content you are proud of may not exist as far as they are concerned — and the audit will tell you exactly which pages.</p>
 <p style="margin:0;color:#6b7689;font-size:13px;">Reply to this email if anything is unclear. It reaches a person.</p>`,
     'Your Crawlable audit is waiting.',
+    footer('commercial', optOut),
   );
 
   const text = `Your license (ending ${params.licenseTail}) has not been used yet.
@@ -189,9 +282,15 @@ With the exception of Google's and Apple's crawlers, AI crawlers do not execute 
 
 Reply to this email if anything is unclear.
 
-Crawlable — ${siteUrl()}`;
+${footerText('commercial', optOut)}`;
 
-  return { subject: 'Your Crawlable audit is still waiting', html, text };
+  return {
+    subject: 'Your Crawlable audit is still waiting',
+    html,
+    text,
+    kind: 'commercial',
+    ...(optOut ? { unsubscribeUrl: optOut } : {}),
+  };
 }
 
 /** Sent after a free scan, offering the full audit. */
@@ -199,7 +298,9 @@ export function scanFollowUpEmail(params: {
   siteUrl: string;
   score: number;
   invisiblePercent: number;
+  recipient: string;
 }): EmailContent {
+  const optOut = unsubscribeUrl(params.recipient);
   const host = params.siteUrl.replace(/^https?:\/\//, '');
   const pricing = `${siteUrl()}/#pricing`;
 
@@ -209,6 +310,7 @@ export function scanFollowUpEmail(params: {
 ${button(pricing, 'See what a full audit covers')}
 <p style="margin:0;color:#6b7689;font-size:13px;">No account needed — you get a license key by email and paste it into the dashboard.</p>`,
     `${host} scored ${params.score}/100.`,
+    footer('commercial', optOut),
   );
 
   const text = `You scanned ${host} and it came back at ${params.score}/100.
@@ -217,7 +319,13 @@ That scan looked at one page. A full audit crawls up to 40, finds which of them 
 
 See what a full audit covers: ${pricing}
 
-Crawlable — ${siteUrl()}`;
+${footerText('commercial', optOut)}`;
 
-  return { subject: `${host} scored ${params.score}/100 for AI readability`, html, text };
+  return {
+    subject: `${host} scored ${params.score}/100 for AI readability`,
+    html,
+    text,
+    kind: 'commercial',
+    ...(optOut ? { unsubscribeUrl: optOut } : {}),
+  };
 }

@@ -30,7 +30,7 @@ async function main(): Promise<void> {
     const tables = await sql<{ table_name: string }[]>`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public'
-        AND table_name IN ('licenses', 'audits', 'rate_limits')
+        AND table_name IN ('licenses', 'audits', 'rate_limits', 'email_optouts')
       ORDER BY table_name
     `;
 

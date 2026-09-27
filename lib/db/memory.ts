@@ -22,6 +22,7 @@ export class MemoryStore implements Store {
   private buckets = new Map<string, number[]>();
   private domains = new Map<string, DomainSlot[]>();
   private orderPlans = new Map<string, PlanId>();
+  private optOuts = new Set<string>();
 
   async init(): Promise<void> {
     // Nothing to set up.
@@ -188,6 +189,14 @@ export class MemoryStore implements Store {
         invisiblePercent: audit.invisiblePercent,
         pagesAudited: audit.result.pagesAudited,
       }));
+  }
+
+  async suppressEmail(email: string, _source: string): Promise<void> {
+    this.optOuts.add(email.trim().toLowerCase());
+  }
+
+  async isEmailSuppressed(email: string): Promise<boolean> {
+    return this.optOuts.has(email.trim().toLowerCase());
   }
 
   async rateLimit(bucket: string, limit: number, windowSeconds: number): Promise<boolean> {
