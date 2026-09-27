@@ -241,16 +241,13 @@ export async function GET(request: Request): Promise<Response> {
 /**
  * Hand a scan back.
  *
- * Read-modify-write rather than a conditional decrement, because the store
- * interface has no decrement and adding one would mean adding a way to give
- * scans back — a capability worth keeping narrow. The race window is real but
- * benign: the worst outcome is a customer keeping a scan they should have
- * spent, which is the direction to err in.
+ * Delegates to the store's conditional decrement. This used to be a
+ * read-modify-write through upsertLicense, which never worked: upsert
+ * deliberately preserves scans_used so a redelivered webhook cannot reset a
+ * customer's usage, so the refund was silently dropped and the customer was
+ * charged for a crawl that failed — while the error told them otherwise.
  */
 async function refundScan(keyHash: string): Promise<void> {
   const db = await store();
-  const record = await db.getLicense(keyHash);
-  if (record && record.scansUsed > 0) {
-    await db.upsertLicense({ ...record, scansUsed: record.scansUsed - 1 });
-  }
+  await db.refundScan(keyHash);
 }

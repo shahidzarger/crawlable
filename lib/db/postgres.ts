@@ -288,6 +288,16 @@ export class PostgresStore implements Store {
     return rows.length > 0;
   }
 
+  async refundScan(keyHash: string): Promise<void> {
+    // Conditional in the statement, so a concurrent refund cannot drive the
+    // counter negative.
+    await this.sql`
+      UPDATE licenses
+      SET scans_used = scans_used - 1, updated_at = NOW()
+      WHERE key_hash = ${keyHash} AND scans_used > 0
+    `;
+  }
+
   async bindTargetDomain(keyHash: string, domain: string): Promise<string> {
     /*
      * Bind only when unbound, and report back whatever the licence now holds.

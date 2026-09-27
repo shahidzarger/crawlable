@@ -58,6 +58,28 @@ function summaryOf(pages: PageAnalysis[]): string | null {
   return withDescription?.metaDescription ?? null;
 }
 
+/**
+ * Turn a URL slug into a section heading.
+ *
+ * Acronyms are preserved because naive title-casing produces "Ai Crawlers"
+ * and "Api Reference" — which ships inside the customer's own llms.txt, where
+ * it reads as carelessness about the very thing the file is for.
+ */
+const ACRONYMS = new Set(['ai', 'api', 'faq', 'seo', 'llm', 'saas', 'ui', 'ux', 'cli', 'sdk']);
+
+function titleCaseSlug(slug: string): string {
+  return slug
+    .replace(/[-_]/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) =>
+      ACRONYMS.has(word.toLowerCase())
+        ? word.toUpperCase()
+        : word.charAt(0).toUpperCase() + word.slice(1),
+    )
+    .join(' ');
+}
+
 /** Sections that are real categories, so they keep a heading even with one page. */
 const KNOWN_SECTIONS: Record<string, string> = {
   docs: 'Documentation',
@@ -130,7 +152,7 @@ function groupPages(pages: PageAnalysis[]): Map<string, PageGroup> {
       const lower = segment.toLowerCase();
       const mapped = KNOWN_SECTIONS[lower];
       known = mapped !== undefined;
-      label = mapped ?? lower.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      label = mapped ?? titleCaseSlug(lower);
     }
 
     const group = groups.get(label) ?? { pages: [], known };
@@ -348,7 +370,7 @@ export function generateJsonLd(result: AuditResult): string {
         ...segments.map((segment, index) => ({
           '@type': 'ListItem',
           position: index + 2,
-          name: segment.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+          name: titleCaseSlug(segment),
           item: `${origin}/${segments.slice(0, index + 1).join('/')}`,
         })),
       ],

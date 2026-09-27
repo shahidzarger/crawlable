@@ -87,6 +87,13 @@ export class MemoryStore implements Store {
     return true;
   }
 
+  async refundScan(keyHash: string): Promise<void> {
+    const record = this.licenses.get(keyHash);
+    if (!record || record.scansUsed <= 0) return;
+    record.scansUsed -= 1;
+    record.updatedAt = new Date().toISOString();
+  }
+
   async bindTargetDomain(keyHash: string, domain: string): Promise<string> {
     const record = this.licenses.get(keyHash);
     if (!record) return domain;

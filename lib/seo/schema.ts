@@ -28,6 +28,7 @@ import { PRODUCTION_ORIGIN } from '@/lib/site-url';
 
 const ORGANIZATION_ID = `${PRODUCTION_ORIGIN}/#organization`;
 const SOFTWARE_ID = `${PRODUCTION_ORIGIN}/#software`;
+const WEBSITE_ID = `${PRODUCTION_ORIGIN}/#website`;
 
 const DESCRIPTION =
   "Audit your site's visibility across ChatGPT Search, Claude, and Perplexity. " +
@@ -87,6 +88,25 @@ export function siteSchema(): Record<string, unknown> {
         },
       },
       {
+        /*
+         * The site as an entity, distinct from the company and from the
+         * product. Search engines use it to attach the site name shown beside
+         * a result, which without this is guessed from the title tag.
+         *
+         * Deliberately no SearchAction: that declares a sitelinks search box,
+         * and this site has no search endpoint to point one at. Claiming one
+         * would be markup describing a feature that does not exist.
+         */
+        '@type': 'WebSite',
+        '@id': WEBSITE_ID,
+        name: 'Crawlable',
+        alternateName: 'Crawlable — AI search and LLM visibility audits',
+        url: PRODUCTION_ORIGIN,
+        description: DESCRIPTION,
+        inLanguage: 'en-US',
+        publisher: { '@id': ORGANIZATION_ID },
+      },
+      {
         '@type': 'SoftwareApplication',
         '@id': SOFTWARE_ID,
         name: 'Crawlable',
@@ -96,6 +116,7 @@ export function siteSchema(): Record<string, unknown> {
         description: DESCRIPTION,
         publisher: { '@id': ORGANIZATION_ID },
         provider: { '@id': ORGANIZATION_ID },
+        isPartOf: { '@id': WEBSITE_ID },
         offers: offers(),
       },
     ],

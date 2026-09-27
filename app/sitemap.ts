@@ -51,7 +51,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
   const staticRoutes = STATIC_ROUTES.map((route) => ({
-    url: `${SITE_URL}${route.path}`,
+    /*
+     * The home page is emitted as "/", not as a bare origin.
+     *
+     * Both are valid and resolve identically, but the rest of the codebase
+     * canonicalises the root WITH the slash (see canonicalKey), and a sitemap
+     * that disagrees with the canonical tag on the same page is the exact
+     * ambiguity this product exists to find on other people's sites.
+     */
+    url: `${SITE_URL}${route.path === '' ? '/' : route.path}`,
     lastModified: now,
     changeFrequency: route.changeFrequency,
     priority: route.priority,

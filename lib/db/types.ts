@@ -103,6 +103,18 @@ export interface Store {
   consumeScan(keyHash: string): Promise<boolean>;
 
   /**
+   * Hand one scan back, never below zero.
+   *
+   * A dedicated method because upsertLicense deliberately preserves
+   * scans_used — it has to, or a redelivered webhook would reset a
+   * customer's usage. That made the obvious read-modify-write refund a
+   * silent no-op: a crawl that failed, or a domain that was refused, charged
+   * a scan while the error message said it had not. This is the only way to
+   * decrement, and it is conditional so it cannot go negative.
+   */
+  refundScan(keyHash: string): Promise<void>;
+
+  /**
    * Record the domain a licence is bound to, but only if it has none yet.
    *
    * Returns the domain the licence is now bound to, which is the EXISTING one

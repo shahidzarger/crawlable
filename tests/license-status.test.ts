@@ -149,3 +149,57 @@ describe('credits decrement cleanly on a freshly provisioned pack', () => {
     expect([a.allowed, b.allowed].filter(Boolean).length).toBe(1);
   });
 });
+
+describe('refundScan', () => {
+  /*
+   * Pinned at the store level because the bug was invisible at the route
+   * level: refunding by upsertLicense looked correct and did nothing, since
+   * upsert preserves scans_used so a redelivered webhook cannot reset usage.
+   * Both stores must decrement, and neither may go below zero.
+   */
+  it('gives a scan back and never goes negative', async () => {
+    const key = `TEST-REFUND-${Date.now()}`;
+    const keyHash = hashLicenseKey(key);
+    await recordLicense({
+      licenseKey: key,
+      plan: 'single',
+      email: 'buyer@example.invalid',
+      orderId: 'test-order-refund',
+      status: 'active',
+    });
+
+    const db = await store();
+    await db.consumeScan(keyHash);
+    await db.consumeScan(keyHash);
+    expect((await db.getLicense(keyHash))?.scansUsed).toBe(2);
+
+    await db.refundScan(keyHash);
+    expect((await db.getLicense(keyHash))?.scansUsed).toBe(1);
+
+    await db.refundScan(keyHash);
+    await db.refundScan(keyHash);
+    await db.refundScan(keyHash);
+    expect((await db.getLicense(keyHash))?.scansUsed, 'must floor at zero').toBe(0);
+  });
+
+  it('is not undone by a redelivered webhook', async () => {
+    const key = `TEST-REFUND-IDEM-${Date.now()}`;
+    const keyHash = hashLicenseKey(key);
+    const params = {
+      licenseKey: key,
+      plan: 'pack' as const,
+      email: 'buyer@example.invalid',
+      orderId: 'test-order-refund-idem',
+      status: 'active' as const,
+    };
+    await recordLicense(params);
+
+    const db = await store();
+    await db.consumeScan(keyHash);
+    await db.refundScan(keyHash);
+
+    // The retry must not reset the counter in either direction.
+    await recordLicense(params);
+    expect((await db.getLicense(keyHash))?.scansUsed).toBe(0);
+  });
+});

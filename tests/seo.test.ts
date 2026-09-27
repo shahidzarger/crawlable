@@ -113,7 +113,8 @@ describe('sitemap.xml', () => {
     const byUrl = new Map(entries.map((entry) => [entry.url, entry]));
 
     const expected: Array<[string, string, number]> = [
-      ['https://usecrawlable.com', 'daily', 1],
+      // With the slash: the sitemap now agrees with canonicalKey's root form.
+      ['https://usecrawlable.com/', 'daily', 1],
       ['https://usecrawlable.com/contact', 'monthly', 0.8],
       ['https://usecrawlable.com/terms', 'yearly', 0.5],
       ['https://usecrawlable.com/privacy', 'yearly', 0.5],
@@ -242,5 +243,26 @@ describe('siteSchema', () => {
     const serialised = serialiseJsonLd({ evil: '</script><img src=x>' });
     expect(serialised).not.toContain('</script>');
     expect(JSON.parse(serialised)).toEqual({ evil: '</script><img src=x>' });
+  });
+});
+
+describe('WebSite schema', () => {
+  it('describes the site as an entity, linked to the organisation', () => {
+    const graph = siteSchema() as unknown as { '@graph': Array<Record<string, unknown>> };
+    const site = graph['@graph'].find((n) => n['@type'] === 'WebSite');
+
+    expect(site, 'no WebSite node').toBeDefined();
+    expect(site?.['@id']).toBe('https://usecrawlable.com/#website');
+    expect(site?.url).toBe('https://usecrawlable.com');
+    expect((site?.publisher as Record<string, unknown>)['@id']).toBe(
+      'https://usecrawlable.com/#organization',
+    );
+  });
+
+  it('claims no sitelinks search box, because there is no search', () => {
+    // potentialAction/SearchAction declares a feature this site does not have.
+    const graph = siteSchema() as unknown as { '@graph': Array<Record<string, unknown>> };
+    const site = graph['@graph'].find((n) => n['@type'] === 'WebSite');
+    expect(site?.potentialAction).toBeUndefined();
   });
 });

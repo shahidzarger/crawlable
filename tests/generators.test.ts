@@ -286,3 +286,28 @@ describe('robots.txt carry-over', () => {
     expect(robots).toMatch(/^Sitemap: https?:\/\/\S+\/sitemap\.xml$/m);
   });
 });
+
+describe('section headings', () => {
+  it('preserves acronyms rather than writing "Ai Crawlers"', () => {
+    // This heading ships inside the customer's own llms.txt. Naive title
+    // casing reads as carelessness about exactly what the file is for.
+    // Built with the same fixture helper as every other test here, so the
+    // pages pass the readability filter the generator applies.
+    const result = buildResult('User-agent: *\nAllow: /');
+    result.pages = [
+      page('https://acme.test/', 'Home — Acme', 'Acme builds project tools.'),
+      // Two per group: a lone page under an unknown slug is filed as a loose
+      // page rather than getting its own heading, so one each would not
+      // exercise the casing at all.
+      page('https://acme.test/ai-crawlers/gptbot', 'GPTBot — Acme', 'About GPTBot.'),
+      page('https://acme.test/ai-crawlers/claudebot', 'ClaudeBot — Acme', 'About ClaudeBot.'),
+      page('https://acme.test/api-reference/auth', 'Auth — Acme', 'API authentication.'),
+      page('https://acme.test/api-reference/errors', 'Errors — Acme', 'API error codes.'),
+    ];
+
+    const llms = generateLlmsTxt(result);
+    expect(llms).toContain('## AI Crawlers');
+    expect(llms).not.toContain('Ai Crawlers');
+    expect(llms).toContain('## API Reference');
+  });
+});
