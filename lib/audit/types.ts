@@ -158,6 +158,20 @@ export interface AuditResult {
    */
   pagesSkipped: number;
   /**
+   * How the crawl target list was built. Absent on a free scan, which audits
+   * only the entered URL and discovers nothing.
+   *
+   * Present on an audit so that "why did it only crawl N pages?" is answerable
+   * from the report rather than from a live debugging session: `source` says
+   * where the URLs came from, and `discovered` distinguishes "your site has
+   * more pages than your plan crawls" from "we could not find your pages".
+   */
+  discovery?: {
+    source: 'sitemap' | 'homepage' | 'root-only';
+    sitemapUrl: string | null;
+    discovered: number;
+  };
+  /**
    * True when `pagesSkipped > 0`. The score is then computed from a sample
    * rather than the full target list, and the UI must say so — a score
    * presented as complete when it is not is the one failure mode that would

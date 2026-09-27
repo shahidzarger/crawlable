@@ -106,10 +106,11 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
   const entryUrl = normaliseForCrawl(entry);
 
   let targets: string[];
+  let discovery: AuditResult['discovery'];
   if (mode === 'scan') {
     targets = [entryUrl];
   } else {
-    const discovery = await discoverUrls(origin, limit, robots.sitemaps, deadline);
+    const found = await discoverUrls(origin, limit, robots.sitemaps, deadline);
     /*
      * Always audit the exact URL the customer entered, even if the sitemap
      * sample did not include it — then deduplicate.
@@ -121,7 +122,22 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
      * of the home page. dedupeUrls keeps the first occurrence, so the entry
      * stays at index 0 and is still the last thing a budget overrun drops.
      */
-    targets = dedupeUrls([entryUrl, ...discovery.urls]).slice(0, limit);
+    targets = dedupeUrls([entryUrl, ...found.urls]).slice(0, limit);
+
+    /*
+     * Kept on the result rather than discarded.
+     *
+     * Without this, "why did it only crawl N pages?" cannot be answered
+     * from the report at all — it took a live crawl to establish that a
+     * customer's sitemap was being read correctly and the cap was simply
+     * doing its job. `discovered` distinguishes "your site has more pages
+     * than your plan crawls" from "we could not find your other pages".
+     */
+    discovery = {
+      source: found.source,
+      sitemapUrl: found.sitemapUrl,
+      discovered: found.discovered,
+    };
   }
 
   /*
@@ -173,6 +189,7 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
     pagesFailed: pages.length - readable.length,
     pagesSkipped,
     isPartialScan: pagesSkipped > 0,
+    ...(discovery ? { discovery } : {}),
     checks,
     pages,
     robots,

@@ -35,8 +35,30 @@ const EXCLUDED_PATTERNS = [
   /\.(?:jpg|jpeg|png|gif|webp|avif|svg|ico|css|js|pdf|zip|mp4|webm|woff2?|ttf|xml|json)$/i,
 ];
 
+/**
+ * Same-origin test that survives a trailing slash.
+ *
+ * This compared `url.origin !== origin` against a raw string, and that broke
+ * every audit: the caller began passing a crawlable root
+ * ("https://site.com/") where this expected a bare origin
+ * ("https://site.com"). `URL.origin` never carries a trailing slash, so the
+ * comparison was false for every candidate, sitemap AND homepage discovery
+ * returned nothing, and every audit silently fell back to crawling the
+ * single root page.
+ *
+ * Parsing both sides means the caller cannot reintroduce that by handing over
+ * a URL in a slightly different shape.
+ */
+function sameOrigin(url: URL, origin: string): boolean {
+  try {
+    return url.origin === new URL(origin).origin;
+  } catch {
+    return false;
+  }
+}
+
 function isAuditable(url: URL, origin: string): boolean {
-  if (url.origin !== origin) return false;
+  if (!sameOrigin(url, origin)) return false;
   // Tested against the cleaned form: a page is not excluded on the strength of
   // a query parameter that is about to be stripped anyway.
   const cleaned = new URL(normaliseForCrawl(url));
@@ -120,6 +142,19 @@ export interface DiscoveryResult {
   urls: string[];
   source: 'sitemap' | 'homepage' | 'root-only';
   sitemapUrl: string | null;
+  /**
+   * How many distinct URLs the source offered, before the page cap.
+   *
+   * Reported because "we crawled 8 pages" and "we crawled 8 of the 41 your
+   * sitemap lists" answer different questions, and only the second says
+   * whether the cap or the discovery was the limit.
+   *
+   * Counted within the sampling window parseSitemap reads (limit x 3), not
+   * across the whole file. At the real page limit of 40 that window is 120,
+   * comfortably above most sitemaps, so the number a customer sees is the
+   * true one; a deliberately tiny limit can undercount.
+   */
+  discovered: number;
 }
 
 /**
@@ -140,17 +175,27 @@ export async function discoverUrls(
   deadline?: number,
 ): Promise<DiscoveryResult> {
   const outOfTime = (): boolean => deadline !== undefined && Date.now() >= deadline;
+  let discovered = 0;
   /*
-   * The root is stored in its crawlable form ("https://example.com/"), not as
-   * a bare origin. They are the same request, but they are different strings —
-   * and the caller in index.ts compares this list against the customer's entry
-   * URL, which the URL parser always renders with the slash. When the two
-   * spellings disagreed, the home page was queued twice: fetched twice, counted
-   * twice, and then flagged for sharing a title with itself.
+   * Two forms of the same address, and the distinction is load-bearing.
+   *
+   *   siteOrigin — bare, no trailing slash. What every same-origin comparison
+   *     is made against, because that is the shape `URL.origin` has, and what
+   *     parseSitemap and discoverFromHomepage expect.
+   *   rootUrl — the crawlable form, with the slash. What goes in the queue at
+   *     index 0, so it matches the entry URL the audit route computes and the
+   *     home page is not queued, fetched and counted twice.
+   *
+   * Both are needed, and each breaks something different when used for the
+   * other's job. Using the slashed form as the origin made `url.origin !==
+   * origin` true for every candidate, so sitemap and homepage discovery both
+   * returned nothing and every audit quietly crawled one page. Using the bare
+   * form in the queue put the home page in twice.
    */
-  const root = normaliseForCrawl(normaliseUrl(origin).origin);
-  const ordered: string[] = [root];
-  const seen = new Set([canonicalKey(root)]);
+  const siteOrigin = normaliseUrl(origin).origin;
+  const rootUrl = normaliseForCrawl(siteOrigin);
+  const ordered: string[] = [rootUrl];
+  const seen = new Set([canonicalKey(rootUrl)]);
 
   const push = (candidates: string[]): void => {
     for (const candidate of candidates) {
@@ -164,7 +209,7 @@ export async function discoverUrls(
 
   const candidates = [
     ...sitemapHints,
-    ...SITEMAP_CANDIDATES.map((path) => new URL(path, root).toString()),
+    ...SITEMAP_CANDIDATES.map((path) => new URL(path, siteOrigin).toString()),
   ];
 
   let usedSitemap: string | null = null;
@@ -173,9 +218,10 @@ export async function discoverUrls(
     if (outOfTime()) break;
     // Deduplicated before sampling, or a sitemap that lists /blog and
     // /blog/ spends two of the sample's slots on one page.
-    const urls = dedupeUrls(await parseSitemap(candidate, root, limit * 3));
+    const urls = dedupeUrls(await parseSitemap(candidate, siteOrigin, limit * 3));
     if (urls.length > 0) {
       usedSitemap = candidate;
+      discovered = urls.length;
       // Prefer breadth: sample evenly across the sitemap rather than taking
       // the first N, which on most sites are all the same section.
       const step = Math.max(1, Math.floor(urls.length / Math.max(1, limit - 1)));
@@ -190,11 +236,17 @@ export async function discoverUrls(
   }
 
   if (usedSitemap && ordered.length > 1) {
-    return { urls: ordered.slice(0, limit), source: 'sitemap', sitemapUrl: usedSitemap };
+    return {
+      urls: ordered.slice(0, limit),
+      source: 'sitemap',
+      sitemapUrl: usedSitemap,
+      discovered,
+    };
   }
 
   if (!outOfTime()) {
-    const homepageLinks = await discoverFromHomepage(root, limit * 2);
+    const homepageLinks = await discoverFromHomepage(siteOrigin, limit * 2);
+    discovered = Math.max(discovered, homepageLinks.length);
     push(homepageLinks);
   }
 
@@ -202,6 +254,7 @@ export async function discoverUrls(
     urls: ordered.slice(0, limit),
     source: ordered.length > 1 ? 'homepage' : 'root-only',
     sitemapUrl: usedSitemap,
+    discovered,
   };
 }
 

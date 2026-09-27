@@ -1,3 +1,4 @@
+import type { AuditResult } from '@/lib/audit/types';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -60,6 +61,16 @@ export default async function AuditReportPage({
         <p className="text-xs ink-muted">
           Report {record.id.slice(0, 8)} · {new Date(result.createdAt).toISOString().slice(0, 10)} ·{' '}
           {isScan ? 'free single-page scan' : `${result.pagesAudited}-page audit`}
+          {/*
+            How the pages were found, stated on the report.
+
+            A crawl that returns one page looks identical to a crawl that was
+            capped at one page, and telling them apart used to take a live
+            debugging session against the customer's own domain. This line is
+            the difference between "your sitemap lists 41 and we crawled 40"
+            and "we could not find your other pages".
+          */}
+          {result.discovery ? ` · ${describeDiscovery(result.discovery)}` : null}
         </p>
         <div className="flex items-center gap-4">
           {isScan ? null : <ReportActionBar auditId={record.id} siteUrl={result.siteUrl} />}
@@ -111,4 +122,13 @@ export default async function AuditReportPage({
       </div>
     </div>
   );
+}
+
+/** One clause describing where the crawl's URL list came from. */
+function describeDiscovery(discovery: NonNullable<AuditResult['discovery']>): string {
+  if (discovery.source === 'root-only') {
+    return 'no sitemap or internal links found, so only the entered page was crawled';
+  }
+  const where = discovery.source === 'sitemap' ? 'your sitemap' : 'links on your home page';
+  return `discovered from ${where} (${discovery.discovered} URLs found)`;
 }

@@ -58,54 +58,106 @@ function summaryOf(pages: PageAnalysis[]): string | null {
   return withDescription?.metaDescription ?? null;
 }
 
-/** Group discovered pages into llms.txt sections by their top-level path. */
-function groupPages(pages: PageAnalysis[]): Map<string, PageAnalysis[]> {
-  const groups = new Map<string, PageAnalysis[]>();
+/** Sections that are real categories, so they keep a heading even with one page. */
+const KNOWN_SECTIONS: Record<string, string> = {
+  docs: 'Documentation',
+  doc: 'Documentation',
+  documentation: 'Documentation',
+  blog: 'Blog',
+  posts: 'Blog',
+  article: 'Articles',
+  articles: 'Articles',
+  category: 'Categories',
+  tag: 'Topics',
+  products: 'Products',
+  product: 'Products',
+  pricing: 'Pricing',
+  features: 'Features',
+  guides: 'Guides',
+  guide: 'Guides',
+  support: 'Support',
+  help: 'Support',
+  about: 'Company',
+  company: 'Company',
+  legal: 'Legal',
+  api: 'API',
+};
 
-  const labelFor = (pathname: string): string => {
-    const segment = pathname.split('/').filter(Boolean)[0];
-    if (!segment) return 'Key pages';
-    const known: Record<string, string> = {
-      docs: 'Documentation',
-      doc: 'Documentation',
-      documentation: 'Documentation',
-      blog: 'Blog',
-      posts: 'Blog',
-      article: 'Articles',
-      articles: 'Articles',
-      products: 'Products',
-      product: 'Products',
-      pricing: 'Pricing',
-      features: 'Features',
-      guides: 'Guides',
-      guide: 'Guides',
-      support: 'Support',
-      help: 'Support',
-      about: 'Company',
-      company: 'Company',
-      legal: 'Legal',
-      api: 'API',
-    };
-    const lower = segment.toLowerCase();
-    if (known[lower]) return known[lower];
-    return lower.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  };
+/** Where single pages with no real category end up. */
+const LOOSE_SECTION = 'Pages';
+const ROOT_SECTION = 'Key pages';
+
+interface PageGroup {
+  pages: PageAnalysis[];
+  /** True when the label came from KNOWN_SECTIONS rather than from a slug. */
+  known: boolean;
+}
+
+/**
+ * Group discovered pages into llms.txt sections.
+ *
+ * Grouping is by top-level path segment, which works for a site organised
+ * into /blog/, /docs/ and /pricing/ — and fails badly for the flat permalink
+ * structure most blogs use, where every post sits at the root. There, the
+ * first segment IS the post slug, so every page became its own section: a
+ * forty-page site produced forty headings of one link each, which is the
+ * opposite of the compact map llms.txt exists to be.
+ *
+ * So a heading is earned, not assumed. A derived label needs at least two
+ * pages to keep its own section; everything else collects under one heading.
+ */
+function groupPages(pages: PageAnalysis[]): Map<string, PageGroup> {
+  const groups = new Map<string, PageGroup>();
 
   for (const page of pages) {
     if (page.error !== null) continue;
+
     let pathname = '/';
     try {
       pathname = new URL(page.url).pathname;
     } catch {
       continue;
     }
-    const label = labelFor(pathname);
-    const list = groups.get(label) ?? [];
-    list.push(page);
-    groups.set(label, list);
+
+    const segment = pathname.split('/').filter(Boolean)[0];
+    let label: string;
+    let known: boolean;
+
+    if (!segment) {
+      label = ROOT_SECTION;
+      known = true;
+    } else {
+      const lower = segment.toLowerCase();
+      const mapped = KNOWN_SECTIONS[lower];
+      known = mapped !== undefined;
+      label = mapped ?? lower.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+
+    const group = groups.get(label) ?? { pages: [], known };
+    group.pages.push(page);
+    groups.set(label, group);
   }
 
-  return groups;
+  // Fold the one-page slug sections into a single heading.
+  const folded = new Map<string, PageGroup>();
+  const loose: PageAnalysis[] = [];
+
+  for (const [label, group] of groups) {
+    if (!group.known && group.pages.length < 2) {
+      loose.push(...group.pages);
+      continue;
+    }
+    folded.set(label, group);
+  }
+
+  if (loose.length > 0) {
+    const existing = folded.get(LOOSE_SECTION);
+    const merged = existing ? [...existing.pages, ...loose] : loose;
+    merged.sort((a, b) => (a.title ?? a.url).localeCompare(b.title ?? b.url));
+    folded.set(LOOSE_SECTION, { pages: merged, known: true });
+  }
+
+  return folded;
 }
 
 export function generateLlmsTxt(result: AuditResult): string {
@@ -130,16 +182,23 @@ export function generateLlmsTxt(result: AuditResult): string {
     '',
   );
 
-  // "Key pages" first, then the rest alphabetically for a stable file.
+  /*
+   * Key pages first, the loose collection last, real categories alphabetically
+   * between them. Stable ordering matters: this file gets committed to a
+   * customer's repo, and a regenerated kit that reshuffles every line produces
+   * a diff nobody can review.
+   */
   const ordered = [...groups.entries()].sort(([a], [b]) => {
-    if (a === 'Key pages') return -1;
-    if (b === 'Key pages') return 1;
+    if (a === ROOT_SECTION) return -1;
+    if (b === ROOT_SECTION) return 1;
+    if (a === LOOSE_SECTION) return 1;
+    if (b === LOOSE_SECTION) return -1;
     return a.localeCompare(b);
   });
 
-  for (const [label, groupPagesList] of ordered) {
+  for (const [label, group] of ordered) {
     lines.push(`## ${label}`, '');
-    for (const page of groupPagesList.slice(0, 25)) {
+    for (const page of group.pages.slice(0, 40)) {
       const title = page.title ?? page.url;
       const description =
         page.metaDescription ??
