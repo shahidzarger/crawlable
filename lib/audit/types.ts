@@ -170,6 +170,15 @@ export interface AuditResult {
     source: 'sitemap' | 'homepage' | 'root-only';
     sitemapUrl: string | null;
     discovered: number;
+    /**
+     * The origin the customer typed, when it redirected somewhere else. The
+     * report has to be able to say "you asked about century.ae; it redirects
+     * to www.century.ae, and that is what we audited" — silently auditing a
+     * different host is how a correct report reads as a wrong one.
+     */
+    redirectedFrom?: string;
+    /** True when that redirect left the site entirely, e.g. a moved domain. */
+    offSite?: boolean;
   };
   /**
    * True when `pagesSkipped > 0`. The score is then computed from a sample

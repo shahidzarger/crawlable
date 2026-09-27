@@ -44,11 +44,11 @@ vi.mock('@/lib/audit/fetcher', async () => {
 });
 
 const { tryFetch } = await import('@/lib/audit/fetcher');
-const { discoverUrls, discoverFromHomepage, parseSitemap } = await import(
+const { discoverUrls, discoverFromHomepage, parseSitemap, resolveOrigin } = await import(
   '@/lib/audit/discover'
 );
 
-type Reply = { status: number; body: string } | null;
+type Reply = { status: number; body: string; finalUrl?: string } | null;
 
 function serve(routes: Record<string, Reply>) {
   /*
@@ -74,7 +74,9 @@ function serve(routes: Record<string, Reply>) {
     return {
       status: reply.status,
       body: reply.body,
-      finalUrl: url,
+      // A route may land somewhere other than where it was asked for: that is
+      // what a redirect is, and it is the shape the apex-to-www bug lived in.
+      finalUrl: reply.finalUrl ?? url,
       bytes: reply.body.length,
       fetchMs: 1,
       headers: { 'content-type': 'text/html' },
@@ -274,5 +276,112 @@ describe('discovery provenance on the result', () => {
     expect(result.source).toBe('root-only');
     expect(result.discovered).toBe(0);
     expect(result.urls).toHaveLength(1);
+  });
+});
+
+/**
+ * The apex-to-www defect, found on century.ae.
+ *
+ * The site's apex redirects to www. The typed origin was used for every
+ * same-origin comparison, and `URL.origin` folds in the www label — so all
+ * 116 homepage links and all 120 sitemap entries resolved to
+ * `https://www.century.ae` and were discarded as cross-origin. Discovery
+ * returned nothing, `source` was 'root-only', and a site with hundreds of
+ * pages was audited as one. Every assertion here failed before the fix.
+ */
+describe('apex that redirects to www', () => {
+  const WWW_SITEMAP = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://www.century.test/</loc></url>
+  <url><loc>https://www.century.test/en/about-us/</loc></url>
+  <url><loc>https://www.century.test/en/why-us/</loc></url>
+  <url><loc>https://www.century.test/en/research/</loc></url>
+</urlset>`;
+
+  const WWW_HOMEPAGE = `<!doctype html><html><body>
+    <a href="/en/">Home</a>
+    <a href="/en/about-us/">About</a>
+    <a href="https://www.century.test/en/careers/">Careers</a>
+    <a href="https://other.test/off">Off site</a>
+  </body></html>`;
+
+  it('finds the sitemap pages even though they are on the www host', async () => {
+    serve({
+      'https://www.century.test/sitemap.xml': { status: 200, body: WWW_SITEMAP },
+      'https://century.test/': {
+        status: 200,
+        body: WWW_HOMEPAGE,
+        finalUrl: 'https://www.century.test/en/',
+      },
+    });
+
+    const result = await discoverUrls('https://century.test', 40, [
+      'https://www.century.test/sitemap.xml',
+    ]);
+
+    expect(result.source).toBe('sitemap');
+    expect(result.urls.length).toBeGreaterThan(1);
+    expect(result.urls).toContain('https://www.century.test/en/about-us/');
+  });
+
+  it('falls back to www homepage links when there is no sitemap', async () => {
+    serve({
+      'https://century.test/': {
+        status: 200,
+        body: WWW_HOMEPAGE,
+        finalUrl: 'https://www.century.test/en/',
+      },
+    });
+
+    const result = await discoverUrls('https://century.test', 40);
+
+    expect(result.source).toBe('homepage');
+    expect(result.urls).toContain('https://www.century.test/en/about-us/');
+    expect(result.urls).toContain('https://www.century.test/en/careers/');
+    // Still scoped: a genuinely different host is not crawled.
+    expect(result.urls.some((u) => u.includes('other.test'))).toBe(false);
+  });
+
+  it('resolveOrigin reports where the entry URL actually landed', async () => {
+    serve({
+      'https://century.test/': {
+        status: 200,
+        body: WWW_HOMEPAGE,
+        finalUrl: 'https://www.century.test/en/',
+      },
+    });
+
+    const resolved = await resolveOrigin('https://century.test');
+
+    expect(resolved.origin).toBe('https://www.century.test');
+    expect(resolved.entryUrl).toBe('https://www.century.test/en/');
+    expect(resolved.redirectedFrom).toBe('https://century.test');
+    // Same site, so no off-site warning: www is not somewhere else.
+    expect(resolved.offSite).toBe(false);
+  });
+
+  it('flags a redirect that leaves the site, but still follows it', async () => {
+    serve({
+      'https://moved.test/': {
+        status: 200,
+        body: WWW_HOMEPAGE,
+        finalUrl: 'https://newbrand.test/home/',
+      },
+    });
+
+    const resolved = await resolveOrigin('https://moved.test');
+
+    expect(resolved.origin).toBe('https://newbrand.test');
+    expect(resolved.offSite).toBe(true);
+  });
+
+  it('keeps the typed origin when the root does not respond', async () => {
+    serve({});
+
+    const resolved = await resolveOrigin('https://unreachable.test');
+
+    expect(resolved.origin).toBe('https://unreachable.test');
+    expect(resolved.entryUrl).toBe('https://unreachable.test/');
+    expect(resolved.redirectedFrom).toBeNull();
   });
 });

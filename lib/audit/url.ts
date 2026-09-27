@@ -122,6 +122,39 @@ function cleanSearch(url: URL): void {
 }
 
 /**
+ * The site a host belongs to, for same-site comparisons.
+ *
+ * A leading "www." is dropped and nothing else is. `www.century.ae` and
+ * `century.ae` are one site by universal convention — they are the same
+ * registrable domain, one is a redirect to the other on most of the web, and
+ * a crawler that treats them as different origins finds no pages at all on
+ * any site that redirects between them. Every other subdomain is left
+ * distinct: blog.example.com genuinely can be somebody else's site, and a
+ * crawler that wanders onto it is crawling a host the customer did not ask
+ * about.
+ */
+export function siteHost(host: string): string {
+  const lower = host.toLowerCase();
+  return lower.startsWith('www.') ? lower.slice(4) : lower;
+}
+
+/**
+ * True when two URLs belong to the same site.
+ *
+ * Scheme is ignored deliberately: a page linked as http:// on an https site
+ * is the same page, and the crawler upgrades the scheme when it fetches.
+ * Comparing `URL.origin` — which folds in both scheme and the www label —
+ * is what made every apex-to-www site audit exactly one page.
+ */
+export function sameSite(a: string | URL, b: string | URL): boolean {
+  try {
+    return siteHost(toUrl(a).hostname) === siteHost(toUrl(b).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * The URL to request: safe to fetch, free of fragments and tracking noise.
  *
  * The hostname is lowercased and a default port dropped by the URL parser

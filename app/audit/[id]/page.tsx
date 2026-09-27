@@ -135,9 +135,22 @@ export default async function AuditReportPage({
 
 /** One clause describing where the crawl's URL list came from. */
 function describeDiscovery(discovery: NonNullable<AuditResult['discovery']>): string {
-  if (discovery.source === 'root-only') {
-    return 'no sitemap or internal links found, so only the entered page was crawled';
-  }
-  const where = discovery.source === 'sitemap' ? 'your sitemap' : 'links on your home page';
-  return `discovered from ${where} (${discovery.discovered} URLs found)`;
+  /*
+   * The redirect is named first, because it changes what the rest of the
+   * report is about. Someone who audited century.ae and reads a report headed
+   * www.century.ae needs to be told why in the same breath, not left to
+   * wonder whether they audited the wrong thing.
+   */
+  const redirect = discovery.redirectedFrom
+    ? `${discovery.redirectedFrom} redirects here${discovery.offSite ? ' (a different site)' : ''}, so this is the site we audited`
+    : null;
+
+  const found =
+    discovery.source === 'root-only'
+      ? 'no sitemap or internal links found, so only the entered page was crawled'
+      : `discovered from ${
+          discovery.source === 'sitemap' ? 'your sitemap' : 'links on your home page'
+        } (${discovery.discovered} URLs found)`;
+
+  return redirect ? `${redirect} · ${found}` : found;
 }

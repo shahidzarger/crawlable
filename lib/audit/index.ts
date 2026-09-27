@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { analysePage } from './extract';
 import { analyseRobots, isCrawlableBotOptedOut } from './robots';
 import { analyseLlmsTxt } from './llmstxt';
-import { discoverUrls, mapWithConcurrency } from './discover';
+import { discoverUrls, mapWithConcurrency, resolveOrigin } from './discover';
 import { gradeFor, invisibleShare, overallScore, readablePages, runChecks } from './scoring';
 import { generateAll } from './generators';
-import { FetchError, assertPublicHost, normaliseUrl, toOrigin } from './fetcher';
+import { FetchError, assertPublicHost, normaliseUrl } from './fetcher';
 import { dedupeByUrl, dedupeUrls, normaliseForCrawl } from './url';
 import type { AuditResult, AuditSummary } from './types';
 import { PAGE_LIMITS } from './types-limits';
@@ -62,7 +62,6 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
   const { mode } = options;
 
   const entry = normaliseUrl(options.url);
-  const origin = toOrigin(options.url);
 
   /*
    * Resolve and check the host once, before any work starts.
@@ -74,6 +73,20 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
    * 400 saying the host cannot be audited.
    */
   await assertPublicHost(entry.hostname);
+
+  /*
+   * Where the site actually lives, which is not always what was typed.
+   *
+   * Resolved before anything else uses an origin. On a site whose apex
+   * redirects to www — century.ae, and a large share of the web — the typed
+   * origin has no pages on it: robots.txt and llms.txt read from the wrong
+   * host, and discovery rejected every link and every sitemap entry as
+   * cross-origin, so the audit reported one page for a site with hundreds.
+   * Each redirect hop is re-validated against the private-address rules by
+   * safeFetch, so the resolved host is public by construction.
+   */
+  const resolved = await resolveOrigin(entry);
+  const origin = resolved.origin;
 
   const deadline = started + (options.budgetMs ?? AUDIT_BUDGET_MS);
 
@@ -103,7 +116,12 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
     );
   }
 
-  const entryUrl = normaliseForCrawl(entry);
+  /*
+   * The post-redirect landing page, not the typed spelling. Queuing the typed
+   * form meant it never deduplicated against the same page discovered under
+   * the real host, so the home page was crawled twice and a slot was wasted.
+   */
+  const entryUrl = resolved.entryUrl;
 
   let targets: string[];
   let discovery: AuditResult['discovery'];
@@ -137,6 +155,9 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditResult> {
       source: found.source,
       sitemapUrl: found.sitemapUrl,
       discovered: found.discovered,
+      ...(resolved.redirectedFrom
+        ? { redirectedFrom: resolved.redirectedFrom, offSite: resolved.offSite }
+        : {}),
     };
   }
 

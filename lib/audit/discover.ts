@@ -5,6 +5,7 @@ import {
   dedupeUrls,
   normaliseForCrawl,
   safeCanonicalKey,
+  sameSite,
 } from './url';
 
 /**
@@ -35,30 +36,21 @@ const EXCLUDED_PATTERNS = [
   /\.(?:jpg|jpeg|png|gif|webp|avif|svg|ico|css|js|pdf|zip|mp4|webm|woff2?|ttf|xml|json)$/i,
 ];
 
-/**
- * Same-origin test that survives a trailing slash.
- *
- * This compared `url.origin !== origin` against a raw string, and that broke
- * every audit: the caller began passing a crawlable root
- * ("https://site.com/") where this expected a bare origin
- * ("https://site.com"). `URL.origin` never carries a trailing slash, so the
- * comparison was false for every candidate, sitemap AND homepage discovery
- * returned nothing, and every audit silently fell back to crawling the
- * single root page.
- *
- * Parsing both sides means the caller cannot reintroduce that by handing over
- * a URL in a slightly different shape.
- */
-function sameOrigin(url: URL, origin: string): boolean {
-  try {
-    return url.origin === new URL(origin).origin;
-  } catch {
-    return false;
-  }
-}
-
 function isAuditable(url: URL, origin: string): boolean {
-  if (!sameOrigin(url, origin)) return false;
+  /*
+   * Same SITE, not same origin.
+   *
+   * `URL.origin` folds in the scheme and the www label, and both cost whole
+   * audits. The first cost: comparing against a raw string with a trailing
+   * slash made the test false for every candidate, so discovery returned
+   * nothing and every audit crawled one page. The second, found on
+   * century.ae: the apex redirects to www, every link on the page resolves
+   * to the www host, and `century.ae` !== `www.century.ae` as an origin — so
+   * all 116 links and all 120 sitemap entries were discarded as
+   * cross-origin and the audit reported a single page on a site with
+   * hundreds. sameSite compares registrable hosts and ignores the scheme.
+   */
+  if (!sameSite(url, origin)) return false;
   // Tested against the cleaned form: a page is not excluded on the strength of
   // a query parameter that is about to be stripped anyway.
   const cleaned = new URL(normaliseForCrawl(url));
@@ -136,6 +128,68 @@ export async function discoverFromHomepage(
   });
 
   return [...found].slice(0, limit);
+}
+
+export interface ResolvedOrigin {
+  /** The origin to scope discovery to, and to read robots.txt from. */
+  origin: string;
+  /** The first page to audit: where the entry URL actually lands. */
+  entryUrl: string;
+  /** Set when the entry URL redirected somewhere else. */
+  redirectedFrom: string | null;
+  /** True when the redirect left the site the customer typed. */
+  offSite: boolean;
+}
+
+/**
+ * Find out where a site actually lives before crawling it.
+ *
+ * The origin used to come straight from the string the customer typed, which
+ * is wrong whenever the address they know is not the address the site serves
+ * from — and for an apex that redirects to www, that is most of the web.
+ * Everything downstream inherited the mistake: robots.txt and llms.txt were
+ * read from the wrong host, discovery scoped itself to a host with no pages
+ * on it, and the entry URL queued at index 0 was the pre-redirect spelling,
+ * so it never deduplicated against the same page found under the real host
+ * and the home page was crawled twice.
+ *
+ * One request settles it. If the root does not respond, the typed origin is
+ * kept — an unreachable site should produce a report about an unreachable
+ * site, not a resolution error.
+ */
+export async function resolveOrigin(entry: string | URL): Promise<ResolvedOrigin> {
+  const typed = normaliseUrl(entry instanceof URL ? entry.toString() : entry);
+  const fallback: ResolvedOrigin = {
+    origin: typed.origin,
+    entryUrl: normaliseForCrawl(typed),
+    redirectedFrom: null,
+    offSite: false,
+  };
+
+  const response = await tryFetch(typed);
+  if (!response) return fallback;
+
+  let landed: URL;
+  try {
+    landed = new URL(response.finalUrl);
+  } catch {
+    return fallback;
+  }
+
+  if (landed.origin === typed.origin) return fallback;
+
+  /*
+   * A redirect to an unrelated domain is followed, not ignored — a moved site
+   * is still the customer's site, and refusing to follow would report on a
+   * bare redirect. But it is flagged, because "we audited somewhere else" is
+   * something the report has to be able to say out loud.
+   */
+  return {
+    origin: landed.origin,
+    entryUrl: normaliseForCrawl(landed),
+    redirectedFrom: typed.origin,
+    offSite: !sameSite(landed, typed),
+  };
 }
 
 export interface DiscoveryResult {
