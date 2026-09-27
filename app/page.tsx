@@ -7,6 +7,9 @@ import { FAQS } from '@/content/faq';
 import { SEO_SUITE_PRICE_PROSE, SEO_SUITE_PRICE_RANGE } from '@/lib/benchmarks';
 import { betaFreeDeepAudit } from '@/lib/config';
 import { PAGE_LIMITS } from '@/lib/audit/types-limits';
+import { HeroAnimation } from '@/components/HeroAnimation';
+import { heroMotion } from '@/components/hero-motion';
+import { FIX_KIT_FILES } from '@/lib/audit/file-manifest';
 import { serialiseJsonLd } from '@/lib/seo/schema';
 
 /*
@@ -48,80 +51,150 @@ export default function HomePage() {
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b">
-        <div aria-hidden className="grid-backdrop absolute inset-0 opacity-60" />
-        <div className="relative mx-auto max-w-6xl px-4 py-16 sm:py-24">
-          {/*
-            min-w-0 on both columns is load-bearing: a grid item defaults to
-            min-width:auto, so the terminal's long <pre> lines would expand the
-            column, the grid and the page, producing horizontal scroll on phones.
-          */}
-          <div className="grid gap-12 lg:grid-cols-[1.15fr_1fr] lg:gap-14">
-            <div className="min-w-0">
-              <p
-                className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs"
-                style={{ borderColor: 'var(--border-strong)' }}
-              >
-                <span
-                  aria-hidden
-                  className="inline-block h-1.5 w-1.5 rounded-full"
-                  style={{ background: 'var(--accent)' }}
-                />
-                {NON_RENDERING_CRAWLERS.length} of {AI_CRAWLERS.length} AI crawlers never run
-                your JavaScript
-              </p>
-
-              <h1 className="mt-5 text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.15rem]">
-                <span className="block">Is your website invisible</span>
-                <span className="block" style={{ color: 'var(--accent)' }}>
-                  to AI search engines?
-                </span>
-              </h1>
-
-              <p className="mt-5 max-w-xl text-lg leading-relaxed ink-secondary">
-                Traditional SEO is only half the battle. When someone searches on ChatGPT,
-                Perplexity or Claude, will your site be cited — or ignored? Crawlable audits
-                your raw-HTML extraction bottlenecks, generates ready-to-deploy Fix Kits (
-                <code className="font-mono text-base">robots.txt</code>,{' '}
-                <code className="font-mono text-base">sitemap.xml</code>,{' '}
-                <code className="font-mono text-base">schema.jsonld</code>,{' '}
-                <code className="font-mono text-base">llms.txt</code>), and re-scans to verify
-                your score.
-              </p>
-
-              <div className="mt-8 max-w-xl">
-                {/*
-                  The launch badge sits directly above the input, which is
-                  where the offer has to be read for it to change behaviour.
-                  It disappears with the flag, and so does every claim in it.
-                */}
-                {betaFreeDeepAudit() ? (
-                  <div className="mb-4">
-                    <p
-                      className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
-                      style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
-                    >
-                      <span aria-hidden>🚀</span>
-                      Launch Special: Free Deep Audit (Up to {PAGE_LIMITS.audit} Pages)
-                    </p>
-                    <p className="mt-2 text-xs leading-relaxed ink-secondary">
-                      Normally limited to single-page audits on the free tier. Full{' '}
-                      {PAGE_LIMITS.audit}-page crawler enabled during our Public Beta.
-                    </p>
-                  </div>
-                ) : null}
-
-                <Scanner />
-                <p className="mt-4 text-sm ink-muted">
-                  Engineered for web apps, modern websites, e-commerce, and agencies.
+        {/*
+          HeroAnimation supplies the scope, the drifting backdrop and the
+          entrance sequencing. It replaces the previous static .grid-backdrop
+          div, which it re-creates and animates. Everything inside is the
+          original markup, unchanged.
+        */}
+        <HeroAnimation>
+          <div className="relative mx-auto max-w-6xl px-4 py-16 sm:py-24">
+            {/*
+              min-w-0 on both columns is load-bearing: a grid item defaults to
+              min-width:auto, so the terminal's long <pre> lines would expand the
+              column, the grid and the page, producing horizontal scroll on phones.
+            */}
+            <div className="grid gap-12 lg:grid-cols-[1.15fr_1fr] lg:gap-14">
+              <div className="min-w-0">
+                <p
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${heroMotion.pop}`}
+                  style={
+                    { borderColor: 'var(--border-strong)', '--d': '0.1s' } as React.CSSProperties
+                  }
+                >
+                  <span
+                    aria-hidden
+                    className="inline-block h-1.5 w-1.5 rounded-full"
+                    style={{ background: 'var(--accent)' }}
+                  />
+                  {NON_RENDERING_CRAWLERS.length} of {AI_CRAWLERS.length} AI crawlers never run
+                  your JavaScript
                 </p>
+
+                {/*
+                  Same two lines, same words. Each is now wrapped in a clipping
+                  box so the inner span can slide up from beneath it — the mask
+                  reveal. The padding on .line keeps descenders and the accent
+                  line from being shaved by that same overflow.
+                */}
+                <h1 className="mt-5 text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.15rem]">
+                  <span className={heroMotion.line}>
+                    <span
+                      className={heroMotion.mask}
+                      style={{ '--d': '0.26s' } as React.CSSProperties}
+                    >
+                      Is your website invisible
+                    </span>
+                  </span>
+                  <span className={heroMotion.line}>
+                    <span
+                      className={heroMotion.mask}
+                      style={{ color: 'var(--accent)', '--d': '0.42s' } as React.CSSProperties}
+                    >
+                      to AI search engines?
+                    </span>
+                  </span>
+                </h1>
+
+                <p
+                  className={`mt-5 max-w-xl text-lg leading-relaxed ink-secondary ${heroMotion.soft}`}
+                  style={{ '--d': '0.6s' } as React.CSSProperties}
+                >
+                  Traditional SEO is only half the battle. When someone searches on ChatGPT,
+                  Perplexity or Claude, will your site be cited — or ignored? Crawlable audits
+                  your raw-HTML extraction bottlenecks, generates ready-to-deploy Fix Kits (
+                  <code className="font-mono text-base">robots.txt</code>,{' '}
+                  <code className="font-mono text-base">sitemap.xml</code>,{' '}
+                  <code className="font-mono text-base">schema.jsonld</code>,{' '}
+                  <code className="font-mono text-base">llms.txt</code>), and re-scans to verify
+                  your score.
+                </p>
+
+                <div
+                  className={`mt-8 max-w-xl ${heroMotion.btn}`}
+                  style={{ '--d': '0.74s' } as React.CSSProperties}
+                >
+                  {/*
+                    The launch badge sits directly above the input, which is
+                    where the offer has to be read for it to change behaviour.
+                    It disappears with the flag, and so does every claim in it.
+                  */}
+                  {betaFreeDeepAudit() ? (
+                    <div className="mb-4">
+                      <p
+                        className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
+                        style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
+                      >
+                        <span aria-hidden>🚀</span>
+                        Launch Special: Free Deep Audit (Up to {PAGE_LIMITS.audit} Pages)
+                      </p>
+                      <p className="mt-2 text-xs leading-relaxed ink-secondary">
+                        Normally limited to single-page audits on the free tier. Full{' '}
+                        {PAGE_LIMITS.audit}-page crawler enabled during our Public Beta.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <Scanner />
+                  <p className="mt-4 text-sm ink-muted">
+                    Engineered for web apps, modern websites, e-commerce, and agencies.
+                  </p>
+                </div>
+
+                {/*
+                  Three facts, each read from the code that implements it.
+                  AI_CRAWLERS is the registry the audit actually checks,
+                  PAGE_LIMITS.audit is the crawl ceiling the route enforces, and
+                  FIX_KIT_FILES is the manifest the archive is built from — so
+                  none of these can drift away from what the product does, and
+                  none of them is a customer-count nobody can verify.
+                */}
+                <ul className={heroMotion.stats} aria-label="What the audit covers">
+                  {[
+                    { value: AI_CRAWLERS.length, label: 'AI crawlers tracked', delay: '0.92s' },
+                    { value: PAGE_LIMITS.audit, label: 'pages per deep audit', delay: '1.04s' },
+                    {
+                      value: FIX_KIT_FILES.length,
+                      label: 'file production Fix Kit',
+                      delay: '1.16s',
+                    },
+                  ].map((stat) => (
+                    <li
+                      key={stat.label}
+                      className={`${heroMotion.statItem} ${heroMotion.stat}`}
+                      style={{ '--d': stat.delay } as React.CSSProperties}
+                    >
+                      {/*
+                        No visually-hidden duplicate label: the visible text is
+                        already the label, and a sr-only copy made a screen
+                        reader announce "AI crawlers tracked 15 AI crawlers
+                        tracked".
+                      */}
+                      <span className={heroMotion.statValue}>{stat.value}</span>{' '}
+                      {stat.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="min-w-0 lg:pt-12" style={{ '--d': '0.9s' } as React.CSSProperties}>
+                <div className={heroMotion.soft}>
+                  <TerminalDemo />
+                </div>
               </div>
             </div>
-
-            <div className="min-w-0 lg:pt-12">
-              <TerminalDemo />
-            </div>
           </div>
-        </div>
+        </HeroAnimation>
       </section>
 
       {/* The mechanism */}
