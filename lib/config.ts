@@ -4,11 +4,10 @@ import { env } from '@/lib/env';
 /**
  * Launch-window feature flags.
  *
- * Read from NEXT_PUBLIC_* directly rather than through lib/env.ts, which is
- * the same exception lib/checkout-links.ts makes: Next inlines a
- * NEXT_PUBLIC_ variable at build time only when it appears as a literal
- * member expression, so it cannot be routed through a Zod-validated server
- * function and still reach the browser.
+ * Read from NEXT_PUBLIC_* directly rather than through lib/env.ts: Next
+ * inlines a NEXT_PUBLIC_ variable at build time only when it appears as a
+ * literal member expression, so it cannot be routed through a Zod-validated
+ * server function and still reach the browser.
  *
  * Off is the default and the safe state. Absent, misspelt or set to anything
  * other than 'true' means standard behaviour — a flag that fails open would

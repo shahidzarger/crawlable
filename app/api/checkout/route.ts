@@ -7,15 +7,19 @@ import { planById, isPlanId } from '@/lib/plans';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Create a Lemon Squeezy hosted checkout and hand back the redirect URL. */
+/**
+ * Create a Lemon Squeezy hosted checkout and hand back its URL.
+ *
+ * Every buy button goes through here: a checkout created per click can carry
+ * the redirect, receipt and display options below, which a static buy link
+ * cannot. The browser then navigates the whole tab to the returned URL.
+ */
 
 const schema = z.object({
   plan: z.string().refine(isPlanId, 'Unknown plan.'),
   email: z.string().email().optional(),
   /** Optional audit ID from a free scan, so the purchase can be attributed. */
   scanId: z.string().uuid().optional(),
-  /** The browser will open the result in the Lemon.js overlay. */
-  overlay: z.boolean().optional(),
 });
 
 export async function POST(request: Request): Promise<Response> {
@@ -45,7 +49,6 @@ export async function POST(request: Request): Promise<Response> {
     const checkout = await createCheckout({
       plan,
       email: parsed.data.email,
-      overlay: parsed.data.overlay === true,
       metadata: {
         plan: plan.id,
         ...(parsed.data.scanId ? { scan_id: parsed.data.scanId } : {}),

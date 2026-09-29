@@ -2,178 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetEnvCache } from '@/lib/env';
 
 /**
- * Checkout URL rules.
+ * Server-created checkouts.
  *
- *   - `embed=0` was set on every direct link, forcing a full-page navigation
- *     to the checkout domain even when the overlay was available.
- *   - The host check accepted only *.lemonsqueezy.com, so a buy link on
- *     checkout.usecrawlable.com was rejected outright.
- *   - `logo=0` was added to stop the logo linking to the storefront. Measured
- *     on the live checkout, the logo is not a link in either layout, so it
- *     only removed the brand mark. It is now explicitly on.
+ * Every purchase is a checkout created per click and opened as a full page.
+ * These pin exactly what is sent to Lemon Squeezy, because the options are the
+ * whole point of creating checkouts server-side rather than linking to them.
  */
 
-async function loadWith(links: Partial<Record<'SINGLE' | 'PACK' | 'AGENCY', string>>) {
-  vi.resetModules();
-  vi.stubEnv('NEXT_PUBLIC_LS_BUY_SINGLE', links.SINGLE ?? '');
-  vi.stubEnv('NEXT_PUBLIC_LS_BUY_PACK', links.PACK ?? '');
-  vi.stubEnv('NEXT_PUBLIC_LS_BUY_AGENCY', links.AGENCY ?? '');
-  return import('@/lib/checkout-links');
-}
-
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
-
-describe('directCheckoutUrl — the anchor href, used when the overlay cannot open', () => {
-  it('carries the plan for the webhook and shows the logo', async () => {
-    const { directCheckoutUrl } = await loadWith({ SINGLE: 'https://crawlable.lemonsqueezy.com/buy/abc' });
-    const url = new URL(directCheckoutUrl('single') as string);
-    expect(url.searchParams.get('checkout[custom][plan]')).toBe('single');
-    expect(url.searchParams.get('logo')).toBe('1');
-  });
-
-  it('never sets embed — not 0 (forces a redirect), not 1 (dead close button)', async () => {
-    const { directCheckoutUrl } = await loadWith({ SINGLE: 'https://crawlable.lemonsqueezy.com/buy/abc' });
-    expect(new URL(directCheckoutUrl('single') as string).searchParams.has('embed')).toBe(false);
-  });
-
-  it('strips an embed parameter pasted into the environment variable', async () => {
-    const { directCheckoutUrl } = await loadWith({
-      SINGLE: 'https://crawlable.lemonsqueezy.com/buy/abc?embed=0&media=0',
-    });
-    const url = new URL(directCheckoutUrl('single') as string);
-    expect(url.searchParams.has('embed')).toBe(false);
-    // Anything else the store owner chose is kept.
-    expect(url.searchParams.get('media')).toBe('0');
-  });
-
-  it('accepts the custom checkout domain', async () => {
-    const { directCheckoutUrl } = await loadWith({ PACK: 'https://checkout.usecrawlable.com/buy/uuid-1' });
-    expect(directCheckoutUrl('pack')).toMatch(/^https:\/\/checkout\.usecrawlable\.com\/buy\/uuid-1\?/);
-  });
-
-  it('returns null for an unset plan, so that plan falls back to the API route', async () => {
-    const { directCheckoutUrl } = await loadWith({});
-    expect(directCheckoutUrl('agency')).toBeNull();
+describe('return URLs', () => {
+  it('points the post-purchase redirect at production', async () => {
+    const { postPurchaseUrl, POST_PURCHASE_PATH } = await import('@/lib/checkout-links');
+    expect(postPurchaseUrl()).toBe('https://usecrawlable.com/dashboard?purchase=success');
+    expect(POST_PURCHASE_PATH).toBe('/dashboard?purchase=success');
   });
 });
 
-describe('isUsableLink — where a customer may be sent to enter card details', () => {
-  const accept = [
-    'https://crawlable.lemonsqueezy.com/buy/x',
-    'https://lemonsqueezy.com/buy/x',
-    'https://checkout.usecrawlable.com/buy/x',
-    'https://CHECKOUT.usecrawlable.com/buy/x',
-  ];
-  const reject = [
-    'http://checkout.usecrawlable.com/buy/x', // not HTTPS
-    'https://evil.example/buy/x',
-    'https://evillemonsqueezy.com/buy/x', // suffix without the dot
-    'https://checkout.usecrawlable.com.evil.example/buy/x', // lookalike
-    'https://usecrawlable.com/buy/x', // the main site is not the checkout
-    'not a url',
-    '',
-  ];
-
-  it.each(accept)('accepts %s', async (link) => {
-    const { isUsableLink } = await loadWith({});
-    expect(isUsableLink(link)).toBe(true);
-  });
-
-  it.each(reject)('rejects %s', async (link) => {
-    const { isUsableLink } = await loadWith({});
-    expect(isUsableLink(link)).toBe(false);
-  });
-});
-
-describe('overlayCheckoutUrl — what goes into the Lemon.js iframe', () => {
-  it('adds embed=1 and logo=1, keeping everything else intact', async () => {
-    const { overlayCheckoutUrl } = await loadWith({});
-    const url = new URL(
-      overlayCheckoutUrl(
-        'https://checkout.usecrawlable.com/checkout/custom/abc?signature=s1g&checkout%5Bcustom%5D%5Bplan%5D=pack',
-      ),
-    );
-    expect(url.searchParams.get('embed')).toBe('1');
-    expect(url.searchParams.get('logo')).toBe('1');
-    // An API checkout is signed; losing the signature would break it.
-    expect(url.searchParams.get('signature')).toBe('s1g');
-    expect(url.searchParams.get('checkout[custom][plan]')).toBe('pack');
-  });
-
-  it('overrides embed=0 rather than leaving the overlay in page layout', async () => {
-    const { overlayCheckoutUrl } = await loadWith({});
-    expect(new URL(overlayCheckoutUrl('https://x.lemonsqueezy.com/buy/a?embed=0')).searchParams.get('embed')).toBe('1');
-  });
-});
-
-describe('Lemon.js bridge, server side', () => {
-  it('does nothing and reports unavailable when there is no window (SSR)', async () => {
-    const { initLemonSqueezy, overlayAvailable, openCheckoutOverlay } = await import('@/lib/lemon');
-    expect(typeof window).toBe('undefined');
-    expect(initLemonSqueezy()).toBe(false);
-    expect(overlayAvailable()).toBe(false);
-    expect(openCheckoutOverlay('https://x.lemonsqueezy.com/buy/a')).toBe(false);
-  });
-});
-
-describe('parseCheckoutMessage — Lemon.js forwards EVERY window message', () => {
-  it('recognises the three shapes Lemon.js sends', async () => {
-    const { parseCheckoutMessage } = await import('@/lib/lemon');
-    expect(parseCheckoutMessage('mounted')).toEqual({ type: 'mounted' });
-    expect(parseCheckoutMessage('close')).toEqual({ type: 'closed' });
-    expect(
-      parseCheckoutMessage({ event: 'Checkout.Success', data: { type: 'orders', id: 42 } }),
-    ).toEqual({ type: 'success', orderId: '42' });
-  });
-
-  it.each([
-    ['an extension posting an object that looks like close', { event: 'close' }],
-    ['a different Lemon.js event', { event: 'PaymentMethodUpdate.Closed' }],
-    ['an arbitrary string', 'closed'],
-    ['null', null],
-    ['a number', 1],
-    ['React DevTools traffic', { source: 'react-devtools-bridge', payload: {} }],
-  ])('ignores %s', async (_label, data) => {
-    const { parseCheckoutMessage } = await import('@/lib/lemon');
-    expect(parseCheckoutMessage(data)).toBeNull();
-  });
-});
-
-describe('after purchase', () => {
-  it('uses one definition for the server redirect and the client navigation', async () => {
-    const links = await import('@/lib/checkout-links');
-    const lemon = await import('@/lib/lemon');
-    expect(lemon.POST_PURCHASE_PATH).toBe(links.POST_PURCHASE_PATH);
-    expect(links.postPurchaseUrl()).toBe(`https://usecrawlable.com${links.POST_PURCHASE_PATH}`);
-  });
-
-  it('navigates to the dashboard only when the receipt is closed after a success', async () => {
-    const { createPostPurchaseListener, POST_PURCHASE_PATH } = await import('@/lib/lemon');
-    const navigate = vi.fn();
-    const listener = createPostPurchaseListener(navigate);
-
-    listener({ type: 'mounted' });
-    listener({ type: 'success', orderId: '1' });
-    // The receipt — with the licence key — is still on screen. Stay put.
-    expect(navigate).not.toHaveBeenCalled();
-
-    listener({ type: 'closed' });
-    expect(navigate).toHaveBeenCalledWith(POST_PURCHASE_PATH);
-  });
-
-  it('leaves a customer who closed without paying exactly where they were', async () => {
-    const { createPostPurchaseListener } = await import('@/lib/lemon');
-    const navigate = vi.fn();
-    const listener = createPostPurchaseListener(navigate);
-    listener({ type: 'mounted' });
-    listener({ type: 'closed' });
-    expect(navigate).not.toHaveBeenCalled();
-  });
-});
-
-describe('API-created checkouts', () => {
+describe('createCheckout payload', () => {
   const fetchMock = vi.fn();
 
   beforeEach(() => {
@@ -188,7 +32,9 @@ describe('API-created checkouts', () => {
     fetchMock.mockReset().mockImplementation(
       async () =>
         new Response(
-          JSON.stringify({ data: { id: 'c1', attributes: { url: 'https://checkout.usecrawlable.com/checkout/custom/c1' } } }),
+          JSON.stringify({
+            data: { id: 'c1', attributes: { url: 'https://checkout.usecrawlable.com/checkout/custom/c1' } },
+          }),
           { status: 201, headers: { 'content-type': 'application/json' } },
         ),
     );
@@ -197,42 +43,53 @@ describe('API-created checkouts', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     resetEnvCache();
   });
 
-  async function optionsFor(overlay: boolean | undefined) {
+  async function payloadFor(planIndex: number) {
     const { createCheckout } = await import('@/lib/lemonsqueezy');
     const { PLANS } = await import('@/lib/plans');
-    await createCheckout({ plan: PLANS[0]!, ...(overlay === undefined ? {} : { overlay }) });
-    const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
-    return body.data.attributes.checkout_options as { embed: boolean; logo: boolean };
+    await createCheckout({ plan: PLANS[planIndex]!, metadata: { plan: PLANS[planIndex]!.id } });
+    return JSON.parse(fetchMock.mock.calls.at(-1)?.[1]?.body as string).data as {
+      attributes: {
+        checkout_options: Record<string, unknown>;
+        product_options: Record<string, unknown>;
+        checkout_data: { custom: Record<string, string> };
+      };
+      relationships: { store: { data: { id: string } }; variant: { data: { id: string } } };
+    };
   }
 
-  it('shows the logo on every checkout', async () => {
-    expect((await optionsFor(true)).logo).toBe(true);
-    fetchMock.mockClear();
-    expect((await optionsFor(false)).logo).toBe(true);
+  it('creates a full-page checkout with media and logo shown', async () => {
+    const { checkout_options } = (await payloadFor(0)).attributes;
+    expect(checkout_options).toEqual({ embed: false, media: true, logo: true });
+  });
+
+  it('sends no cancel_url — Lemon Squeezy has no such option', async () => {
+    // An undocumented attribute is at best ignored and at worst a validation
+    // error that fails every checkout. Pinned so it is not "helpfully" added.
+    const { checkout_options, product_options } = (await payloadFor(0)).attributes;
+    expect(checkout_options).not.toHaveProperty('cancel_url');
+    expect(product_options).not.toHaveProperty('cancel_url');
   });
 
   it('sends every post-purchase exit back to usecrawlable.com', async () => {
-    const { createCheckout } = await import('@/lib/lemonsqueezy');
-    const { PLANS } = await import('@/lib/plans');
-    await createCheckout({ plan: PLANS[0]!, overlay: true });
-    const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
-    const product = body.data.attributes.product_options as {
-      redirect_url: string;
-      receipt_link_url: string;
-    };
-    expect(product.redirect_url).toBe('https://usecrawlable.com/dashboard?purchase=success');
-    expect(product.receipt_link_url).toBe('https://usecrawlable.com/dashboard');
+    const { product_options } = (await payloadFor(0)).attributes;
+    expect(product_options.redirect_url).toBe('https://usecrawlable.com/dashboard?purchase=success');
+    expect(product_options.receipt_link_url).toBe('https://usecrawlable.com/dashboard');
+    expect(product_options.receipt_button_text).toBe('Go to Dashboard');
   });
 
-  it('embeds only when the browser will open it in the overlay', async () => {
-    expect((await optionsFor(true)).embed).toBe(true);
-    fetchMock.mockClear();
-    expect((await optionsFor(false)).embed).toBe(false);
-    fetchMock.mockClear();
-    // An old client that does not send the flag gets the safe full-page layout.
-    expect((await optionsFor(undefined)).embed).toBe(false);
+  it.each([
+    [0, 'single', '11'],
+    [1, 'pack', '22'],
+    [2, 'agency', '33'],
+  ])('uses the store and the right variant for plan #%i (%s)', async (index, planId, variantId) => {
+    const data = await payloadFor(index);
+    expect(data.relationships.store.data.id).toBe('1');
+    expect(data.relationships.variant.data.id).toBe(variantId);
+    // The webhook provisions from this field alone.
+    expect(data.attributes.checkout_data.custom.plan).toBe(planId);
   });
 });

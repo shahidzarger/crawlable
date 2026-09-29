@@ -5,9 +5,7 @@ import Link from 'next/link';
 import type { AuditResult, AuditSummary } from '@/lib/audit/types';
 import { SEVERITY, scoreColor } from '@/components/report/severity';
 import { planById } from '@/lib/plans';
-import { directCheckoutUrl } from '@/lib/checkout-links';
-import { openCheckoutOverlay } from '@/lib/lemon';
-import { LemonSqueezyScript } from '@/components/LemonSqueezyScript';
+import { useCheckout } from '@/components/useCheckout';
 import {
   downloadAuditFile,
   readStoredLicenseKey,
@@ -73,6 +71,12 @@ export function Dashboard() {
   const [domains, setDomains] = useState<DomainSlot[]>([]);
   /** Set when the API refuses a fourth domain, so the upsell can be shown. */
   const [domainLimitHit, setDomainLimitHit] = useState(false);
+  /*
+   * Buying more room from here. Called up top with the other hooks: this
+   * component returns early for the signed-out view, and a hook below that
+   * return would run on some renders and not others.
+   */
+  const checkout = useCheckout();
 
   /** Re-download a past audit's kit without re-running the crawl. */
   async function downloadKit(audit: AuditSummary) {
@@ -267,21 +271,8 @@ export function Dashboard() {
           0,
           Math.ceil((Date.parse(license.expiresAt) - Date.now()) / 86_400_000),
         );
-  /*
-   * Through the shared builder, not assembled here. This used to append the
-   * plan metadata by hand to the raw env var — correct, but a second copy of
-   * logic the pricing table also has, and it skipped the host allowlist and
-   * the logo parameter. One builder means the two buy buttons cannot drift.
-   */
-  const packUrl = directCheckoutUrl('pack');
-
   return (
     <div className="space-y-8">
-      {/*
-        Loaded with the signed-in view rather than with the upgrade panel, so
-        it is ready before the customer ever reaches for the buy button.
-      */}
-      <LemonSqueezyScript />
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Your audits</h1>
@@ -391,33 +382,24 @@ export function Dashboard() {
             always available — adding a new site is what needs more room.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
-            {packUrl ? (
-              <a
-                href={packUrl}
-                onClick={(event) => {
-                  // A modified click keeps the browser's own behaviour (new tab).
-                  if (
-                    event.metaKey ||
-                    event.ctrlKey ||
-                    event.shiftKey ||
-                    event.altKey ||
-                    event.button !== 0
-                  ) {
-                    return;
-                  }
-                  // Overlay when Lemon.js is here; otherwise the link navigates.
-                  const href = event.currentTarget.href;
-                  if (openCheckoutOverlay(href, { fallbackUrl: href })) event.preventDefault();
-                }}
-                className="btn-primary px-5 py-2.5 text-sm"
-              >
-                Get a Growth Pack
-              </a>
-            ) : (
-              <Link href="/#pricing" className="btn-primary px-5 py-2.5 text-sm">
-                See the plans
-              </Link>
-            )}
+            {/*
+              Same path as the pricing table: a checkout created per click,
+              opened as a full page. Prefilled with the licence's email, since
+              we already know it — one less field between a customer and more
+              domain slots.
+            */}
+            <button
+              type="button"
+              onClick={() => void checkout.start('pack', { email: license.email })}
+              disabled={checkout.pendingPlan !== null}
+              aria-busy={checkout.pendingPlan === 'pack'}
+              className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm disabled:cursor-wait"
+            >
+              {checkout.pendingPlan === 'pack' ? 'Redirecting to checkout…' : 'Get a Growth Pack'}
+            </button>
+            <Link href="/#pricing" className="btn-ghost px-5 py-2.5 text-sm">
+              Compare plans
+            </Link>
             <button
               type="button"
               onClick={() => setDomainLimitHit(false)}
@@ -426,6 +408,11 @@ export function Dashboard() {
               Dismiss
             </button>
           </div>
+          {checkout.error ? (
+            <p role="alert" className="mt-3 text-sm" style={{ color: 'var(--ink-bad)' }}>
+              {checkout.error}
+            </p>
+          ) : null}
         </section>
       ) : null}
 

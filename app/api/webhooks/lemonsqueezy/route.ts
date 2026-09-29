@@ -124,17 +124,15 @@ export async function POST(request: Request): Promise<Response> {
          * `custom_data.plan` is load-bearing.
          *
          * This payload carries no variant_id, so it is the only signal that
-         * identifies the plan. Both purchase paths must set it: the API route
-         * sends it as checkout metadata, and the direct links in
-         * lib/checkout-links.ts append `checkout[custom][plan]`. A bare Lemon
+         * identifies the plan. Every purchase comes through POST
+         * /api/checkout, which sends it as checkout metadata. A bare Lemon
          * Squeezy buy link does not, and a purchase through one lands here
          * unresolvable — which is why raw buy links must never be published.
          */
         /*
          * Plan resolution, in order of reliability.
          *
-         * 1. checkout metadata, when the purchase came through our own
-         *    checkout or one of the direct links in lib/checkout-links.ts;
+         * 1. checkout metadata, set on every checkout /api/checkout creates;
          * 2. the order_plans row written by order_created, which resolved the
          *    plan from the VARIANT ID — the one signal Lemon Squeezy always
          *    sends and nobody can mistype.

@@ -1,141 +1,33 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { flushSync } from 'react-dom';
-import { PLANS, type Plan } from '@/lib/plans';
+import { PLANS } from '@/lib/plans';
 import { SEVERITY } from '@/components/report/severity';
-import { directCheckoutUrl } from '@/lib/checkout-links';
-import { onCheckoutEvent, openCheckoutOverlay, overlayAvailable } from '@/lib/lemon';
-import { LemonSqueezyScript } from '@/components/LemonSqueezyScript';
+import { useCheckout } from '@/components/useCheckout';
 import { SEO_SUITE_PRICE_PROSE } from '@/lib/benchmarks';
 import { betaFreeDeepAudit } from '@/lib/config';
 import { PAGE_LIMITS } from '@/lib/audit/types-limits';
 
 /**
- * Pricing table. Selecting a plan opens the checkout in the Lemon.js overlay,
- * on top of this page — with a close button and no way to wander off to the
- * storefront. If Lemon.js is unavailable (blocked, or not loaded yet) the same
- * click falls back to the full-page checkout, so a buyer can always pay.
+ * Pricing table.
+ *
+ * Choosing a plan creates a checkout on the server and sends the whole tab to
+ * Lemon Squeezy's full-page checkout — the wide, two-column, branded layout.
+ * It replaced the Lemon.js overlay, whose card is a fixed 400px. The way back
+ * is the browser's own Back button: this is an ordinary navigation away from
+ * usecrawlable.com, not a frame on top of it.
  */
 export function Pricing() {
-  /**
-   * The tier the customer has committed to, or null.
-   *
-   * One piece of state drives both paths — the direct link and the API
-   * fallback — so the lock behaves identically whichever is configured. It is
-   * set synchronously in the click handler, before any await and before the
-   * browser begins navigating, so the feedback is immediate rather than
-   * arriving after a network round trip.
+  /*
+   * The tier being bought, the error if creating it failed, and the start
+   * action. The lock (every tier inert while one is starting), the
+   * back/forward-cache recovery and the request timeout all live in the hook,
+   * shared with the dashboard's buy button.
    */
-  const [activeTierId, setActiveTierId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  /** Which wording the busy state uses: an overlay opens, a redirect leaves. */
-  const [opensOverlay, setOpensOverlay] = useState(false);
+  const { start, pendingPlan: activeTierId, error } = useCheckout();
   const locked = activeTierId !== null;
-
-  /*
-   * Never leave the tiers locked behind an overlay.
-   *
-   * The lock exists to stop a double purchase while the page is on its way
-   * somewhere. An overlay is not a departure: the page stays, and when the
-   * customer closes the overlay they must find the buttons working, not
-   * frozen on "Opening checkout…" — which would be the stranding problem
-   * reappearing in a new shape. 'mounted' also clears it, because by then the
-   * overlay itself covers the page and blocks a second click.
-   */
-  useEffect(
-    () =>
-      onCheckoutEvent((event) => {
-        if (event.type === 'mounted' || event.type === 'closed') setActiveTierId(null);
-        /*
-         * The checkout never appeared and the overlay was torn down. A buy
-         * link has already been sent on to its full-page checkout by then; an
-         * API checkout has nowhere safe to go, so the customer is told.
-         */
-        if (event.type === 'stalled') {
-          setActiveTierId(null);
-          setError('The checkout did not load. Please try again, or email support if it keeps happening.');
-        }
-      }),
-    [],
-  );
-
-  /*
-   * Re-enable the buttons when the browser restores this page from the
-   * back/forward cache.
-   *
-   * Clicking a plan sets `activeTierId` and then navigates to the checkout. If
-   * the customer presses Back, the browser may restore this page from bfcache
-   * rather than re-running it — the DOM and all React state come back exactly
-   * as they were left, so `activeTierId` is still set and all three tiers are
-   * still locked and reading "Redirecting to checkout…". The page looks
-   * broken, and the customer cannot buy. On mobile Safari, where Back is a
-   * swipe, this is the common path rather than the edge case.
-   *
-   * `pageshow` fires on every page display, including a bfcache restore, and
-   * `persisted` is true only for that restore — a normal load leaves it false,
-   * and in that case React state started empty anyway, so there is nothing to
-   * reset.
-   *
-   * Only the lock is cleared. `error` is left alone: it is null whenever a
-   * navigation to checkout happened, so clearing it would be a no-op here, and
-   * discarding a genuine error message the customer has not read yet would be
-   * worse than leaving it.
-   */
-  useEffect(() => {
-    function handlePageShow(event: PageTransitionEvent) {
-      if (event.persisted) setActiveTierId(null);
-    }
-
-    window.addEventListener('pageshow', handlePageShow);
-    return () => window.removeEventListener('pageshow', handlePageShow);
-  }, []);
-
-  async function buy(plan: Plan) {
-    /*
-     * Decided once, at the click: whether Lemon.js is here to open an overlay.
-     * The API creates the checkout in the matching mode — an embedded layout
-     * for the overlay, a normal page for a redirect — because the embedded
-     * one's close button only works inside the overlay's frame.
-     */
-    const overlay = overlayAvailable();
-    setOpensOverlay(overlay);
-    setActiveTierId(plan.id);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: plan.id, overlay }),
-      });
-
-      const payload = (await response.json()) as { url?: string; error?: string };
-
-      if (!response.ok || !payload.url) {
-        setError(payload.error ?? 'Could not start checkout. Try again in a moment.');
-        setActiveTierId(null);
-        return;
-      }
-
-      // No fallbackUrl: this checkout was created for the embedded layout.
-      if (overlay && openCheckoutOverlay(payload.url, { fallbackUrl: null })) {
-        setActiveTierId(null);
-        return;
-      }
-
-      // Lemon.js unavailable (or vanished since the click): the full page
-      // still takes payment. Paying must never depend on a third-party script.
-      window.location.href = payload.url;
-    } catch {
-      setError('Could not reach the checkout service. Try again in a moment.');
-      setActiveTierId(null);
-    }
-  }
 
   return (
     <section id="pricing" className="scroll-mt-20">
-      <LemonSqueezyScript />
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           Pay once, keep the files
@@ -249,116 +141,32 @@ export function Pricing() {
             </ul>
 
             {/*
-              A configured plan renders a real link, and the click decides what
-              happens to it:
-
-                - Lemon.js loaded → preventDefault and open the checkout in the
-                  overlay. The customer never leaves this page; the overlay has
-                  its own close button.
-                - Lemon.js blocked or not yet loaded → the native link
-                  navigation proceeds, to the full-page checkout. Slower to
-                  leave, but a buyer can always pay.
-
-              An explicit handler rather than Lemon.js's own
-              `lemonsqueezy-button` class. That class binds a listener to
-              whatever anchors exist when Lemon.js scans the page, so it misses
-              buttons React renders later, and it would fire alongside this
-              handler with no knowledge of the lock. Calling Url.Open directly
-              is deterministic under hydration and re-rendering.
-
-              An unconfigured plan keeps the button and API round trip, so a
-              partial configuration is slow rather than broken.
+              A button, not a link: the checkout does not exist until the click
+              creates it, because a checkout made per click can carry the
+              redirect and receipt options that a static buy link cannot.
+              Creating it takes a server round trip, so the button says what is
+              happening for the whole wait — and every tier locks, so a second
+              click cannot start a second checkout.
             */}
-            {directCheckoutUrl(plan.id) ? (
-              <a
-                href={directCheckoutUrl(plan.id) ?? '#'}
-                /*
-                  flushSync, not a plain setState.
-
-                  React schedules a re-render asynchronously. A native anchor
-                  navigation begins immediately, and the browser stops
-                  committing frames for a document it is leaving — so the
-                  scheduled render never runs and the customer sees no feedback
-                  at all. Measured: without this, the DOM still reads the
-                  original label when the navigation starts.
-
-                  flushSync commits the update synchronously, inside the event
-                  handler, before the browser acts on the click. The navigation
-                  is still native and still instant — preventDefault would undo
-                  the whole point of the direct link.
-                */
-                onClick={(event) => {
-                  /*
-                    A modified click (new tab, new window, download) is the
-                    customer asking for the browser's own behaviour, so it
-                    gets exactly that. It must not lock the tiers either: this
-                    page is not going anywhere, and nothing would ever unlock
-                    them — every card stuck on "Redirecting to checkout…".
-                  */
-                  if (
-                    event.metaKey ||
-                    event.ctrlKey ||
-                    event.shiftKey ||
-                    event.altKey ||
-                    event.button !== 0
-                  ) {
-                    return;
-                  }
-
-                  const href = event.currentTarget.href;
-                  // If the overlay never loads, the full-page checkout is where to go.
-                  if (openCheckoutOverlay(href, { fallbackUrl: href })) {
-                    event.preventDefault();
-                    return;
-                  }
-
-                  setOpensOverlay(false);
-                  flushSync(() => setActiveTierId(plan.id));
-                }}
-                /*
-                  An anchor ignores `disabled`, so a locked one is taken out of
-                  the tab order and has pointer events removed — otherwise a
-                  keyboard user could still fire a second checkout from a
-                  control that looks inert.
-                */
-                aria-disabled={locked && activeTierId !== plan.id}
-                aria-busy={activeTierId === plan.id}
-                tabIndex={locked && activeTierId !== plan.id ? -1 : undefined}
-                className={`btn-ghost tier-cta mt-6 flex w-full items-center justify-center gap-2 px-5 py-3 text-center text-sm ${lockClass(
-                  locked,
-                  activeTierId === plan.id,
-                )}`}
-              >
-                {activeTierId === plan.id ? (
-                  <>
-                    <Spinner />
-                    {opensOverlay ? 'Opening checkout…' : 'Redirecting to checkout…'}
-                  </>
-                ) : (
-                  plan.cta
-                )}
-              </a>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void buy(plan)}
-                disabled={locked}
-                aria-busy={activeTierId === plan.id}
-                className={`btn-ghost tier-cta mt-6 flex w-full items-center justify-center gap-2 px-5 py-3 text-sm ${lockClass(
-                  locked,
-                  activeTierId === plan.id,
-                )}`}
-              >
-                {activeTierId === plan.id ? (
-                  <>
-                    <Spinner />
-                    {opensOverlay ? 'Opening checkout…' : 'Redirecting to checkout…'}
-                  </>
-                ) : (
-                  plan.cta
-                )}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => void start(plan.id)}
+              disabled={locked}
+              aria-busy={activeTierId === plan.id}
+              className={`btn-ghost tier-cta mt-6 flex w-full items-center justify-center gap-2 px-5 py-3 text-sm ${lockClass(
+                locked,
+                activeTierId === plan.id,
+              )}`}
+            >
+              {activeTierId === plan.id ? (
+                <>
+                  <Spinner />
+                  Redirecting to checkout…
+                </>
+              ) : (
+                plan.cta
+              )}
+            </button>
           </div>
         ))}
       </div>

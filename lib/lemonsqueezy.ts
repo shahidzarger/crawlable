@@ -58,17 +58,6 @@ export interface CheckoutParams {
   email?: string;
   /** Carried through the webhook so an audit can be attributed on return. */
   metadata?: Record<string, string>;
-  /**
-   * True when the browser will open this checkout in the Lemon.js overlay.
-   *
-   * Decided by the client at click time, because only the client knows
-   * whether Lemon.js actually loaded. An overlay checkout is created with
-   * embed on; a checkout the browser will navigate to as a full page is
-   * created with it off, because the embedded layout closes itself by
-   * messaging a parent window — as a top-level page it has none, and its
-   * close button would do nothing.
-   */
-  overlay?: boolean;
 }
 
 export interface CheckoutResult {
@@ -130,18 +119,30 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
            * links a customer follows to their real dashboard.
            */
           redirect_url: postPurchaseUrl(),
-          receipt_button_text: 'Open your dashboard',
+          receipt_button_text: 'Go to Dashboard',
           receipt_link_url: `${PRODUCTION_ORIGIN}/dashboard`,
           receipt_thank_you_note:
             'Your license key is in this receipt. Paste it into the Crawlable dashboard to run your audits.',
         },
+        /*
+         * The full-page checkout: wide, two columns, product media and logo
+         * shown. It replaced the Lemon.js overlay, whose checkout card is a
+         * fixed 400px that no parent-page CSS can widen.
+         *
+         * There is deliberately no cancel_url. Lemon Squeezy has no such
+         * option — the documented checkout_options are embed, media, logo,
+         * desc, discount, skip_trial, subscription_preview, the colours,
+         * locale and the deprecated dark. An unknown attribute is at best
+         * ignored and at worst a validation error that fails every checkout.
+         * The way back is the browser's own Back (this is an ordinary
+         * navigation from usecrawlable.com), and the store name in the
+         * checkout header, which leads to the checkout domain's root — sent
+         * back to usecrawlable.com by the store redirect configured in Lemon
+         * Squeezy (Design → custom redirect). See .env.example.
+         */
         checkout_options: {
-          embed: params.overlay === true,
-          media: false,
-          /*
-           * Shown. Measured on the live checkout, the logo is not a link in
-           * either layout — see applyDisplayParams in lib/checkout-links.ts.
-           */
+          embed: false,
+          media: true,
           logo: true,
         },
       },
