@@ -5,6 +5,9 @@ import Link from 'next/link';
 import type { AuditResult, AuditSummary } from '@/lib/audit/types';
 import { SEVERITY, scoreColor } from '@/components/report/severity';
 import { planById } from '@/lib/plans';
+import { directCheckoutUrl } from '@/lib/checkout-links';
+import { openCheckoutOverlay } from '@/lib/lemon';
+import { LemonSqueezyScript } from '@/components/LemonSqueezyScript';
 import {
   downloadAuditFile,
   readStoredLicenseKey,
@@ -264,10 +267,21 @@ export function Dashboard() {
           0,
           Math.ceil((Date.parse(license.expiresAt) - Date.now()) / 86_400_000),
         );
-  const packUrl = process.env.NEXT_PUBLIC_LS_BUY_PACK;
+  /*
+   * Through the shared builder, not assembled here. This used to append the
+   * plan metadata by hand to the raw env var — correct, but a second copy of
+   * logic the pricing table also has, and it skipped the host allowlist and
+   * the logo parameter. One builder means the two buy buttons cannot drift.
+   */
+  const packUrl = directCheckoutUrl('pack');
 
   return (
     <div className="space-y-8">
+      {/*
+        Loaded with the signed-in view rather than with the upgrade panel, so
+        it is ready before the customer ever reaches for the buy button.
+      */}
+      <LemonSqueezyScript />
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Your audits</h1>
@@ -379,7 +393,22 @@ export function Dashboard() {
           <div className="mt-4 flex flex-wrap gap-3">
             {packUrl ? (
               <a
-                href={`${packUrl}${packUrl.includes('?') ? '&' : '?'}checkout%5Bcustom%5D%5Bplan%5D=pack`}
+                href={packUrl}
+                onClick={(event) => {
+                  // A modified click keeps the browser's own behaviour (new tab).
+                  if (
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey ||
+                    event.button !== 0
+                  ) {
+                    return;
+                  }
+                  // Overlay when Lemon.js is here; otherwise the link navigates.
+                  const href = event.currentTarget.href;
+                  if (openCheckoutOverlay(href, { fallbackUrl: href })) event.preventDefault();
+                }}
                 className="btn-primary px-5 py-2.5 text-sm"
               >
                 Get a Growth Pack

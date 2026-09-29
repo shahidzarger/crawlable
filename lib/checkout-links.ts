@@ -1,4 +1,5 @@
 import type { PlanId } from '@/lib/db/types';
+import { PRODUCTION_ORIGIN } from '@/lib/site-url';
 
 /**
  * Direct Lemon Squeezy checkout links.
@@ -29,9 +30,11 @@ import type { PlanId } from '@/lib/db/types';
  * the variant → Share. They must be NEXT_PUBLIC_ to be readable in the
  * browser, and they are not secrets — they are public purchase pages.
  *
- *   NEXT_PUBLIC_LS_BUY_SINGLE=https://<store>.lemonsqueezy.com/buy/<uuid>
- *   NEXT_PUBLIC_LS_BUY_PACK=https://<store>.lemonsqueezy.com/buy/<uuid>
- *   NEXT_PUBLIC_LS_BUY_AGENCY=https://<store>.lemonsqueezy.com/buy/<uuid>
+ *   NEXT_PUBLIC_LS_BUY_SINGLE=https://checkout.usecrawlable.com/buy/<uuid>
+ *   NEXT_PUBLIC_LS_BUY_PACK=https://checkout.usecrawlable.com/buy/<uuid>
+ *   NEXT_PUBLIC_LS_BUY_AGENCY=https://checkout.usecrawlable.com/buy/<uuid>
+ *
+ * (The <store>.lemonsqueezy.com form of the same links works too.)
  *
  * Note the path takes the variant's UUID, not the numeric variant ID used by
  * LEMONSQUEEZY_VARIANT_*. They are different identifiers for the same thing.
@@ -51,14 +54,51 @@ const RAW_LINKS: Record<PlanId, string | undefined> = {
   agency: process.env.NEXT_PUBLIC_LS_BUY_AGENCY,
 };
 
-function isUsableLink(value: string | undefined): value is string {
+/**
+ * The store's custom checkout domain: checkout.<production host>.
+ *
+ * Derived rather than configured, so it cannot drift from the site's own
+ * domain. It has to be allowed explicitly — the check below used to accept
+ * only *.lemonsqueezy.com, so a buy link on checkout.usecrawlable.com was
+ * silently rejected and every "direct" purchase fell back to the slower API
+ * round trip without anyone noticing.
+ */
+const CUSTOM_CHECKOUT_HOST = `checkout.${new URL(PRODUCTION_ORIGIN).hostname}`;
+
+/**
+ * Whether a configured link may be sent to a customer.
+ *
+ * An allowlist, because this is a URL the site tells people to enter card
+ * details into: a typo or a pasted wrong link in an environment variable must
+ * not be able to send a buyer to an arbitrary host. Either Lemon Squeezy's own
+ * domain or our custom checkout domain, over HTTPS, and nothing else.
+ */
+export function isUsableLink(value: string | undefined): value is string {
   if (!value) return false;
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && url.hostname.endsWith('lemonsqueezy.com');
+    if (url.protocol !== 'https:') return false;
+    const host = url.hostname.toLowerCase();
+    return (
+      host === 'lemonsqueezy.com' ||
+      host.endsWith('.lemonsqueezy.com') ||
+      host === CUSTOM_CHECKOUT_HOST
+    );
   } catch {
     return false;
   }
+}
+
+/**
+ * Hide the store logo on every checkout, overlay or not.
+ *
+ * The logo in the checkout header links to the Lemon Squeezy storefront. A
+ * customer who clicks it has left our site for a page we do not control, with
+ * no route back — the second of the two ways people were getting stranded.
+ * `logo=0` removes it; the API route sets the equivalent checkout_options.logo.
+ */
+function applyDisplayParams(url: URL): void {
+  url.searchParams.set('logo', '0');
 }
 
 /**
@@ -72,8 +112,37 @@ export function directCheckoutUrl(plan: PlanId): string | null {
   const url = new URL(raw);
   // The exact key the API route sends, so the webhook cannot tell them apart.
   url.searchParams.set('checkout[custom][plan]', plan);
-  // Skip the "are you sure" interstitial some stores enable.
-  url.searchParams.set('embed', '0');
+  applyDisplayParams(url);
+  /*
+   * Deliberately NO embed parameter here, and the old `embed=0` is gone.
+   *
+   * This URL is the anchor's href — the path taken only when the overlay
+   * cannot open (Lemon.js blocked or not yet loaded). Setting embed=0 forced
+   * that full-page navigation even when the overlay was available, which was
+   * the first way customers ended up stranded on the checkout domain.
+   *
+   * embed=1 does not belong here either. The embedded layout closes itself by
+   * posting a message to a parent window; loaded as a top-level page there is
+   * no parent, so its close button does nothing. overlayCheckoutUrl adds
+   * embed=1 only on the URL that actually goes into the overlay iframe.
+   */
+  url.searchParams.delete('embed');
+  return url.toString();
+}
+
+/**
+ * The URL to open inside the Lemon.js overlay.
+ *
+ * Lemon.js sets embed=1 itself when it opens a URL (its Url.Build), so this is
+ * belt and braces — but it makes the overlay URL correct on its own terms
+ * rather than dependent on a third-party script's internals, and it applies
+ * the display parameters to URLs that did not come from directCheckoutUrl,
+ * such as a checkout created through the API.
+ */
+export function overlayCheckoutUrl(checkoutUrl: string): string {
+  const url = new URL(checkoutUrl);
+  applyDisplayParams(url);
+  url.searchParams.set('embed', '1');
   return url.toString();
 }
 

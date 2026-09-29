@@ -56,6 +56,17 @@ export interface CheckoutParams {
   email?: string;
   /** Carried through the webhook so an audit can be attributed on return. */
   metadata?: Record<string, string>;
+  /**
+   * True when the browser will open this checkout in the Lemon.js overlay.
+   *
+   * Decided by the client at click time, because only the client knows
+   * whether Lemon.js actually loaded. An overlay checkout is created with
+   * embed on; a checkout the browser will navigate to as a full page is
+   * created with it off, because the embedded layout closes itself by
+   * messaging a parent window — as a top-level page it has none, and its
+   * close button would do nothing.
+   */
+  overlay?: boolean;
 }
 
 export interface CheckoutResult {
@@ -117,9 +128,13 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
             'Your license key is in this receipt. Paste it into the Crawlable dashboard to run your audits.',
         },
         checkout_options: {
-          embed: false,
+          embed: params.overlay === true,
           media: false,
-          logo: true,
+          /*
+           * The logo links to the Lemon Squeezy storefront — a page off our
+           * site with no way back. Hidden on every checkout, overlay or not.
+           */
+          logo: false,
         },
       },
       relationships: {

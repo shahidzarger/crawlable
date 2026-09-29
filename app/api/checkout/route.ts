@@ -14,6 +14,8 @@ const schema = z.object({
   email: z.string().email().optional(),
   /** Optional audit ID from a free scan, so the purchase can be attributed. */
   scanId: z.string().uuid().optional(),
+  /** The browser will open the result in the Lemon.js overlay. */
+  overlay: z.boolean().optional(),
 });
 
 export async function POST(request: Request): Promise<Response> {
@@ -43,6 +45,7 @@ export async function POST(request: Request): Promise<Response> {
     const checkout = await createCheckout({
       plan,
       email: parsed.data.email,
+      overlay: parsed.data.overlay === true,
       metadata: {
         plan: plan.id,
         ...(parsed.data.scanId ? { scan_id: parsed.data.scanId } : {}),
