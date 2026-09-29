@@ -90,15 +90,40 @@ export function isUsableLink(value: string | undefined): value is string {
 }
 
 /**
- * Hide the store logo on every checkout, overlay or not.
+ * Show the store logo on every checkout, explicitly.
  *
- * The logo in the checkout header links to the Lemon Squeezy storefront. A
- * customer who clicks it has left our site for a page we do not control, with
- * no route back — the second of the two ways people were getting stranded.
- * `logo=0` removes it; the API route sets the equivalent checkout_options.logo.
+ * `logo=0` was set here in the belief that the logo was the link out to the
+ * Lemon Squeezy storefront. Measured against the live checkout, it is not:
+ *
+ *   - In the overlay (embed=1) the logo is a plain avatar — not wrapped in a
+ *     link, no click handler. Clicking it does nothing. Hiding it removed the
+ *     brand mark from the card and protected against nothing.
+ *   - On the full-page checkout the avatar is equally inert. The storefront
+ *     link is the store NAME beside it ("Crawlable" → the checkout domain's
+ *     root, same tab), and that link is there with logo=0 or without it. No
+ *     URL parameter removes it; that page is only reached when Lemon.js is
+ *     blocked, and the fix for it lives in the Lemon Squeezy store settings.
+ *
+ * Set to 1 rather than merely left off, so the logo shows even if a product's
+ * own checkout settings hide it. The API route sets checkout_options.logo the
+ * same way.
  */
 function applyDisplayParams(url: URL): void {
-  url.searchParams.set('logo', '0');
+  url.searchParams.set('logo', '1');
+}
+
+/**
+ * Where a customer lands after paying.
+ *
+ * One definition for both routes: the API checkout's redirect_url, and the
+ * page the overlay sends people to when they close the receipt. The origin is
+ * the production constant, not the resolved site URL — a return link is a
+ * statement about where the customer's dashboard lives, and it lives here.
+ */
+export const POST_PURCHASE_PATH = '/dashboard?purchase=success';
+
+export function postPurchaseUrl(): string {
+  return `${PRODUCTION_ORIGIN}${POST_PURCHASE_PATH}`;
 }
 
 /**

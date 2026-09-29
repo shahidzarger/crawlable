@@ -1,4 +1,4 @@
-import { overlayCheckoutUrl } from '@/lib/checkout-links';
+import { POST_PURCHASE_PATH, overlayCheckoutUrl } from '@/lib/checkout-links';
 
 /**
  * The browser side of the Lemon.js checkout overlay.
@@ -184,8 +184,9 @@ export function overlayAvailable(): boolean {
  *
  * The fallback is not a failure mode to hide: an ad blocker or a strict
  * network policy that blocks lemonsqueezy.com is common, and a buyer behind
- * one must still be able to pay. They get the full-page checkout — with the
- * logo hidden, so there is no storefront link to wander off through.
+ * one must still be able to pay. They get the full-page checkout. That page's
+ * header links the store name to the storefront, which no URL parameter can
+ * remove — see applyDisplayParams in lib/checkout-links.ts.
  */
 export function openCheckoutOverlay(
   checkoutUrl: string,
@@ -227,7 +228,7 @@ export function openCheckoutOverlay(
 }
 
 /** Where a customer goes after closing the receipt of a successful purchase. */
-export const POST_PURCHASE_PATH = '/dashboard?purchase=success';
+export { POST_PURCHASE_PATH };
 
 /**
  * The listener that turns "paid, then closed the receipt" into a navigation.

@@ -83,7 +83,7 @@ describe('a checkout that never loads', () => {
   });
 
   it('sends a buy link on to its full-page checkout', () => {
-    const href = 'https://checkout.usecrawlable.com/buy/missing?logo=0';
+    const href = 'https://checkout.usecrawlable.com/buy/missing?logo=1';
     openCheckoutOverlay(href, { fallbackUrl: href });
     vi.advanceTimersByTime(MOUNT_TIMEOUT_MS);
     expect(assigned).toEqual([href]);

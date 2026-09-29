@@ -4,12 +4,13 @@ import { resetEnvCache } from '@/lib/env';
 /**
  * Checkout URL rules.
  *
- * Two ways customers were being stranded, both visible in the URL:
  *   - `embed=0` was set on every direct link, forcing a full-page navigation
  *     to the checkout domain even when the overlay was available.
- *   - the store logo was shown, and it links to the Lemon Squeezy storefront.
- * Plus a quiet third: the host check accepted only *.lemonsqueezy.com, so a
- * buy link on checkout.usecrawlable.com was rejected outright.
+ *   - The host check accepted only *.lemonsqueezy.com, so a buy link on
+ *     checkout.usecrawlable.com was rejected outright.
+ *   - `logo=0` was added to stop the logo linking to the storefront. Measured
+ *     on the live checkout, the logo is not a link in either layout, so it
+ *     only removed the brand mark. It is now explicitly on.
  */
 
 async function loadWith(links: Partial<Record<'SINGLE' | 'PACK' | 'AGENCY', string>>) {
@@ -25,11 +26,11 @@ afterEach(() => {
 });
 
 describe('directCheckoutUrl — the anchor href, used when the overlay cannot open', () => {
-  it('carries the plan for the webhook and hides the logo', async () => {
+  it('carries the plan for the webhook and shows the logo', async () => {
     const { directCheckoutUrl } = await loadWith({ SINGLE: 'https://crawlable.lemonsqueezy.com/buy/abc' });
     const url = new URL(directCheckoutUrl('single') as string);
     expect(url.searchParams.get('checkout[custom][plan]')).toBe('single');
-    expect(url.searchParams.get('logo')).toBe('0');
+    expect(url.searchParams.get('logo')).toBe('1');
   });
 
   it('never sets embed — not 0 (forces a redirect), not 1 (dead close button)', async () => {
@@ -87,7 +88,7 @@ describe('isUsableLink — where a customer may be sent to enter card details', 
 });
 
 describe('overlayCheckoutUrl — what goes into the Lemon.js iframe', () => {
-  it('adds embed=1 and logo=0, keeping everything else intact', async () => {
+  it('adds embed=1 and logo=1, keeping everything else intact', async () => {
     const { overlayCheckoutUrl } = await loadWith({});
     const url = new URL(
       overlayCheckoutUrl(
@@ -95,7 +96,7 @@ describe('overlayCheckoutUrl — what goes into the Lemon.js iframe', () => {
       ),
     );
     expect(url.searchParams.get('embed')).toBe('1');
-    expect(url.searchParams.get('logo')).toBe('0');
+    expect(url.searchParams.get('logo')).toBe('1');
     // An API checkout is signed; losing the signature would break it.
     expect(url.searchParams.get('signature')).toBe('s1g');
     expect(url.searchParams.get('checkout[custom][plan]')).toBe('pack');
@@ -141,6 +142,13 @@ describe('parseCheckoutMessage — Lemon.js forwards EVERY window message', () =
 });
 
 describe('after purchase', () => {
+  it('uses one definition for the server redirect and the client navigation', async () => {
+    const links = await import('@/lib/checkout-links');
+    const lemon = await import('@/lib/lemon');
+    expect(lemon.POST_PURCHASE_PATH).toBe(links.POST_PURCHASE_PATH);
+    expect(links.postPurchaseUrl()).toBe(`https://usecrawlable.com${links.POST_PURCHASE_PATH}`);
+  });
+
   it('navigates to the dashboard only when the receipt is closed after a success', async () => {
     const { createPostPurchaseListener, POST_PURCHASE_PATH } = await import('@/lib/lemon');
     const navigate = vi.fn();
@@ -200,10 +208,23 @@ describe('API-created checkouts', () => {
     return body.data.attributes.checkout_options as { embed: boolean; logo: boolean };
   }
 
-  it('hides the logo on every checkout', async () => {
-    expect((await optionsFor(true)).logo).toBe(false);
+  it('shows the logo on every checkout', async () => {
+    expect((await optionsFor(true)).logo).toBe(true);
     fetchMock.mockClear();
-    expect((await optionsFor(false)).logo).toBe(false);
+    expect((await optionsFor(false)).logo).toBe(true);
+  });
+
+  it('sends every post-purchase exit back to usecrawlable.com', async () => {
+    const { createCheckout } = await import('@/lib/lemonsqueezy');
+    const { PLANS } = await import('@/lib/plans');
+    await createCheckout({ plan: PLANS[0]!, overlay: true });
+    const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
+    const product = body.data.attributes.product_options as {
+      redirect_url: string;
+      receipt_link_url: string;
+    };
+    expect(product.redirect_url).toBe('https://usecrawlable.com/dashboard?purchase=success');
+    expect(product.receipt_link_url).toBe('https://usecrawlable.com/dashboard');
   });
 
   it('embeds only when the browser will open it in the overlay', async () => {

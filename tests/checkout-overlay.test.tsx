@@ -80,14 +80,14 @@ describe('with Lemon.js loaded', () => {
     expect(open).toHaveBeenCalledTimes(1);
   });
 
-  it('opens the right plan, embedded, logo hidden, with the webhook metadata', async () => {
+  it('opens the right plan, embedded, logo shown, with the webhook metadata', async () => {
     const { link, plan } = await renderPricing();
     click(link);
 
     const url = new URL(open.mock.calls[0]?.[0] as string);
     expect(url.hostname).toBe('checkout.usecrawlable.com');
     expect(url.searchParams.get('embed')).toBe('1');
-    expect(url.searchParams.get('logo')).toBe('0');
+    expect(url.searchParams.get('logo')).toBe('1');
     expect(url.searchParams.get('checkout[custom][plan]')).toBe(plan.id);
   });
 
@@ -133,10 +133,10 @@ describe('without Lemon.js (blocked, or not loaded yet)', () => {
 
     const { navigated } = click(link);
     expect(navigated).toBe(true);
-    // The href is the full-page checkout: no embed, logo hidden.
+    // The href is the full-page checkout: no embed, logo shown.
     const href = new URL(link.getAttribute('href') as string);
     expect(href.searchParams.has('embed')).toBe(false);
-    expect(href.searchParams.get('logo')).toBe('0');
+    expect(href.searchParams.get('logo')).toBe('1');
     // The page is leaving, so the tiers lock against a double purchase.
     expect(screen.getByText('Redirecting to checkout…')).toBeTruthy();
   });

@@ -1,6 +1,8 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import { lemonSqueezyConfig, siteUrl } from '@/lib/env';
+import { lemonSqueezyConfig } from '@/lib/env';
 import type { Plan } from '@/lib/plans';
+import { postPurchaseUrl } from '@/lib/checkout-links';
+import { PRODUCTION_ORIGIN } from '@/lib/site-url';
 
 /**
  * Lemon Squeezy integration.
@@ -121,9 +123,15 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
           custom: params.metadata ?? {},
         },
         product_options: {
-          redirect_url: `${siteUrl()}/dashboard?purchase=success`,
+          /*
+           * Every post-purchase exit points back at usecrawlable.com: the
+           * redirect after payment and the receipt's button alike. The
+           * production origin, not the resolved site URL, because these are
+           * links a customer follows to their real dashboard.
+           */
+          redirect_url: postPurchaseUrl(),
           receipt_button_text: 'Open your dashboard',
-          receipt_link_url: `${siteUrl()}/dashboard`,
+          receipt_link_url: `${PRODUCTION_ORIGIN}/dashboard`,
           receipt_thank_you_note:
             'Your license key is in this receipt. Paste it into the Crawlable dashboard to run your audits.',
         },
@@ -131,10 +139,10 @@ export async function createCheckout(params: CheckoutParams): Promise<CheckoutRe
           embed: params.overlay === true,
           media: false,
           /*
-           * The logo links to the Lemon Squeezy storefront — a page off our
-           * site with no way back. Hidden on every checkout, overlay or not.
+           * Shown. Measured on the live checkout, the logo is not a link in
+           * either layout — see applyDisplayParams in lib/checkout-links.ts.
            */
-          logo: false,
+          logo: true,
         },
       },
       relationships: {
