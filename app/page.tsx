@@ -82,24 +82,16 @@ export default function HomePage() {
 
               <div className="mt-8 max-w-xl">
                 {/*
-                  The launch badge sits directly above the input, which is
-                  where the offer has to be read for it to change behaviour.
-                  It disappears with the flag, and so does every claim in it.
+                  The offer label sits directly above the input, where it has
+                  to be read to change behaviour. It is gated on the same flag
+                  that lifts the free tier to the full crawl, so it can never
+                  offer what the scanner will not do: when the beta ends, the
+                  label disappears with it.
                 */}
                 {betaFreeDeepAudit() ? (
-                  <div className="mb-4">
-                    <p
-                      className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold"
-                      style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
-                    >
-                      <span aria-hidden>🚀</span>
-                      Launch Special: Free Deep Audit (Up to {PAGE_LIMITS.audit} Pages)
-                    </p>
-                    <p className="mt-2 text-xs leading-relaxed ink-secondary">
-                      Normally limited to single-page audits on the free tier. Full{' '}
-                      {PAGE_LIMITS.audit}-page crawler enabled during our Public Beta.
-                    </p>
-                  </div>
+                  <p className="badge mb-4 px-3 py-1.5 text-xs">
+                    Free Deep Audit (Up to {PAGE_LIMITS.audit} Pages)
+                  </p>
                 ) : null}
 
                 <Scanner />
@@ -308,7 +300,11 @@ export default function HomePage() {
           drop-in; schema.jsonld leaves two social handles and a search URL for you to fill
           in. FIXES.md says where each one belongs.
         </p>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {/*
+          The five-card deck from the Fix Kit brand asset (gallery-2): one row
+          on wide screens, three then two columns as the width drops.
+        */}
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <Deliverable
             file="robots.txt"
             body="Retrieval crawlers allowed explicitly, training crawlers listed separately so blocking them stays a licensing decision rather than an accident. Your existing wildcard Disallow rules are carried over, with a Sitemap directive appended."
@@ -389,13 +385,34 @@ function Card({ step, title, body }: { step: string; title: string; body: string
 }
 
 function Deliverable({ file, body }: { file: string; body: string }) {
+  /*
+   * Styled after the Fix Kit asset's file cards: emerald rule along the top,
+   * the file name in bold mono with a document outline top-right, and the
+   * explanation in a pale inset tray below — the tray stretches so every
+   * card in a row ends at the same height.
+   */
   return (
-    <div className="surface-card file-card p-5">
-      <code className="inline-block font-mono text-[15px] font-bold" style={{ color: 'var(--ink-primary)' }}>
-        {file}
-      </code>
-      <p className="mt-3 text-sm leading-relaxed ink-secondary">{body}</p>
+    <div className="kit-card flex flex-col p-4">
+      <div className="flex items-start justify-between gap-3 px-1 pt-2">
+        <code className="font-mono text-[17px] font-bold leading-tight" style={{ color: 'var(--ink-primary)' }}>
+          {file}
+        </code>
+        <FileGlyph />
+      </div>
+      <div className="kit-tray mt-5 flex-1 p-4">
+        <p className="text-sm leading-relaxed ink-secondary">{body}</p>
+      </div>
     </div>
+  );
+}
+
+/** The document outline from the Fix Kit asset: a page with a folded corner. */
+function FileGlyph() {
+  return (
+    <svg aria-hidden focusable="false" viewBox="179 21 27 31" width="24" height="28" className="shrink-0">
+      <path d="M180.5 22.5h16l8 8v20h-24z" fill="var(--surface-raised)" stroke="var(--ink-primary)" strokeWidth="1.5" />
+      <path d="M196.5 22.5v8h8" fill="none" stroke="var(--ink-primary)" strokeWidth="1.5" />
+    </svg>
   );
 }
 
