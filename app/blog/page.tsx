@@ -70,11 +70,7 @@ export default function BlogPage() {
       <header className="max-w-2xl">
         <h1 className="text-4xl font-extrabold tracking-[-0.03em]">Blog</h1>
         <p className="mt-4 text-lg leading-relaxed ink-secondary">{BLOG_DESCRIPTION}</p>
-        <p className="mt-3 text-sm ink-muted">
-          <a href="/feed.xml" className="underline underline-offset-2 hover:text-[var(--ink-secondary)]">
-            Subscribe via RSS
-          </a>
-        </p>
+        {/* The feed is advertised in <head> (alternates.types above), not in the UI. */}
       </header>
 
       <div className="mt-10">
