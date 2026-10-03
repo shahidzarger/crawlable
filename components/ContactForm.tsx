@@ -172,7 +172,7 @@ export function ContactForm() {
       {state.phase === 'error' ? (
         <div
           role="alert"
-          className="rounded-xl border px-4 py-3 text-sm"
+          className="rounded-lg border px-4 py-3 text-sm"
           style={{ borderColor: 'var(--data-bad)' }}
         >
           <p className="font-medium">

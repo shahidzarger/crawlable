@@ -196,7 +196,7 @@ export function Dashboard() {
   if (!license) {
     return (
       <div className="mx-auto max-w-md">
-        <h1 className="text-2xl font-semibold tracking-tight">Enter your license key</h1>
+        <h1 className="text-2xl font-bold tracking-[-0.02em]">Enter your license key</h1>
         <p className="mt-2 text-sm ink-secondary">
           It is in the receipt email from Lemon Squeezy. No password, no account.
         </p>
@@ -233,7 +233,7 @@ export function Dashboard() {
         {message ? (
           <p
             role="alert"
-            className="mt-4 rounded-xl border p-3 text-sm"
+            className="mt-4 rounded-lg border p-3 text-sm"
             style={{ borderColor: 'var(--data-bad)' }}
           >
             <span aria-hidden style={{ color: 'var(--data-bad)' }}>
@@ -275,7 +275,7 @@ export function Dashboard() {
     <div className="space-y-8">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Your audits</h1>
+          <h1 className="text-2xl font-bold tracking-[-0.02em]">Your audits</h1>
           <p className="mt-1 text-sm ink-secondary">
             {/* Read from the catalogue so a plan rename cannot drift out of sync here. */}
             {planById(license.plan)?.name ?? license.plan} · key ending {license.keyTail} ·{' '}
@@ -347,7 +347,7 @@ export function Dashboard() {
         {message ? (
           <p
             role="alert"
-            className="mt-3 rounded-xl border p-3 text-sm"
+            className="mt-3 rounded-lg border p-3 text-sm"
             style={{ borderColor: 'var(--data-bad)' }}
           >
             <span aria-hidden style={{ color: 'var(--data-bad)' }}>

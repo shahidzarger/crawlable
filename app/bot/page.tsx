@@ -35,7 +35,7 @@ export default function BotPage() {
         / CrawlableBot
       </nav>
 
-      <h1 className="mt-4 text-4xl font-semibold tracking-tight">CrawlableBot</h1>
+      <h1 className="mt-4 text-4xl font-extrabold tracking-[-0.03em]">CrawlableBot</h1>
 
       <p className="mt-4 text-lg leading-relaxed ink-secondary">
         CrawlableBot is a diagnostic crawler operated by Crawlable (usecrawlable.com) to test
@@ -169,7 +169,7 @@ export default function BotPage() {
 function Section({ heading, children }: { heading: string; children: React.ReactNode }) {
   return (
     <section className="mt-12">
-      <h2 className="text-2xl font-semibold tracking-tight">{heading}</h2>
+      <h2 className="text-2xl font-bold tracking-[-0.02em]">{heading}</h2>
       <div className="mt-3 space-y-3 leading-relaxed ink-secondary">{children}</div>
     </section>
   );

@@ -121,7 +121,7 @@ export function RobotsTemplate() {
 
 export function Note({ children }: { children: React.ReactNode }) {
   return (
-    <div className="not-prose my-6 rounded-xl border-l-4 px-5 py-4 text-sm leading-relaxed ink-secondary" style={{ borderColor: 'var(--accent)', background: 'var(--surface-sunken)' }}>
+    <div className="not-prose my-6 rounded-lg border-l-4 px-5 py-4 text-sm leading-relaxed ink-secondary" style={{ borderColor: 'var(--accent)', background: 'var(--surface-sunken)' }}>
       {children}
     </div>
   );

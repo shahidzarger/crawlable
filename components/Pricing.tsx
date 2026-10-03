@@ -29,7 +29,7 @@ export function Pricing() {
   return (
     <section id="pricing" className="scroll-mt-20">
       <div className="mx-auto max-w-2xl text-center">
-        <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h2 className="text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">
           Pay once, keep the files
         </h2>
         <p className="mt-3 ink-secondary">
@@ -46,7 +46,7 @@ export function Pricing() {
       */}
       {betaFreeDeepAudit() ? (
         <div
-          className="mx-auto mt-8 max-w-3xl rounded-xl border p-5 text-sm"
+          className="mx-auto mt-8 max-w-3xl rounded-lg border p-5 text-sm"
           style={{ borderColor: 'var(--accent)' }}
         >
           <p className="font-semibold">
@@ -82,7 +82,7 @@ export function Pricing() {
       {error ? (
         <div
           role="alert"
-          className="mx-auto mt-6 max-w-lg rounded-xl border p-4 text-sm"
+          className="mx-auto mt-6 max-w-lg rounded-lg border p-4 text-sm"
           style={{ borderColor: 'var(--data-bad)' }}
         >
           <span aria-hidden style={{ color: 'var(--data-bad)' }}>
@@ -110,7 +110,7 @@ export function Pricing() {
           >
             {plan.highlight ? (
               <span
-                className="absolute -top-2.5 left-6 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                className="absolute -top-2.5 left-6 rounded-md px-2.5 py-0.5 text-[11px] font-semibold"
                 style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
               >
                 Most popular

@@ -15,7 +15,7 @@ export default function PlatformsIndex() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-14">
-      <h1 className="text-4xl font-semibold tracking-tight">
+      <h1 className="text-4xl font-extrabold tracking-[-0.03em]">
         Which platforms AI crawlers can read
       </h1>
       <p className="mt-4 text-lg leading-relaxed ink-secondary">

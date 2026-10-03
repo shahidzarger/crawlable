@@ -15,7 +15,7 @@ export default function CrawlersIndex() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-14">
-      <h1 className="text-4xl font-semibold tracking-tight">
+      <h1 className="text-4xl font-extrabold tracking-[-0.03em]">
         Every AI crawler, and what blocking it costs
       </h1>
       <p className="mt-4 text-lg leading-relaxed ink-secondary">
@@ -26,7 +26,7 @@ export default function CrawlersIndex() {
       </p>
 
       <section className="mt-12">
-        <h2 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+        <h2 className="flex items-center gap-2 text-2xl font-bold tracking-[-0.02em]">
           <span aria-hidden style={{ color: 'var(--data-bad)' }}>
             {SEVERITY.critical.icon}
           </span>
@@ -44,7 +44,7 @@ export default function CrawlersIndex() {
       </section>
 
       <section className="mt-14">
-        <h2 className="text-2xl font-semibold tracking-tight">
+        <h2 className="text-2xl font-bold tracking-[-0.02em]">
           Blocking these is a licensing choice
         </h2>
         <p className="mt-2 ink-secondary">

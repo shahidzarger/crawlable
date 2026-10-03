@@ -77,7 +77,7 @@ export default async function PlatformPage({
         / {platform.name}
       </nav>
 
-      <h1 className="mt-4 text-4xl font-semibold tracking-tight">
+      <h1 className="mt-4 text-4xl font-extrabold tracking-[-0.03em]">
         Can AI crawlers read {platform.name} sites?
       </h1>
 
@@ -100,7 +100,7 @@ export default async function PlatformPage({
 
       <p className="mt-8 text-lg leading-relaxed">{platform.verdict}</p>
 
-      <h2 className="mt-12 text-2xl font-semibold tracking-tight">What is actually happening</h2>
+      <h2 className="mt-12 text-2xl font-bold tracking-[-0.02em]">What is actually happening</h2>
       <p className="mt-3 leading-relaxed ink-secondary">{platform.mechanism}</p>
       <p className="mt-4 leading-relaxed ink-secondary">
         {NON_RENDERING_CRAWLERS.length} of the major AI crawlers — including{' '}
@@ -111,7 +111,7 @@ export default async function PlatformPage({
         adds after hydration is not part of what they read.
       </p>
 
-      <h2 className="mt-12 text-2xl font-semibold tracking-tight">
+      <h2 className="mt-12 text-2xl font-bold tracking-[-0.02em]">
         What to do on {platform.name}
       </h2>
       <ol className="mt-4 space-y-4">
@@ -125,7 +125,7 @@ export default async function PlatformPage({
         ))}
       </ol>
 
-      <h2 className="mt-12 text-2xl font-semibold tracking-tight">What trips people up</h2>
+      <h2 className="mt-12 text-2xl font-bold tracking-[-0.02em]">What trips people up</h2>
       <ul className="mt-4 space-y-3">
         {platform.gotchas.map((gotcha) => (
           <li key={gotcha} className="flex gap-3 leading-relaxed">
@@ -137,7 +137,7 @@ export default async function PlatformPage({
         ))}
       </ul>
 
-      <h2 className="mt-12 text-2xl font-semibold tracking-tight">
+      <h2 className="mt-12 text-2xl font-bold tracking-[-0.02em]">
         Where the files go on {platform.name}
       </h2>
       <p className="mt-3 leading-relaxed ink-secondary">{platform.filePlacement}</p>

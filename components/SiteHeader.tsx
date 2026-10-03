@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandMark } from './BrandMark';
 
 export function SiteHeader() {
   return (
@@ -7,12 +8,8 @@ export function SiteHeader() {
       style={{ background: 'color-mix(in srgb, var(--surface) 88%, transparent)' }}
     >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span
-            aria-hidden
-            className="inline-block h-2.5 w-2.5 rounded-sm"
-            style={{ background: 'var(--accent)' }}
-          />
+        <Link href="/" className="flex items-center gap-2.5 text-[17px] font-extrabold tracking-[-0.02em]">
+          <BrandMark />
           Crawlable
         </Link>
 

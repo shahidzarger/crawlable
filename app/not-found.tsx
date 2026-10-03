@@ -4,7 +4,7 @@ export default function NotFound() {
   return (
     <div className="mx-auto flex max-w-lg flex-col items-start px-4 py-24">
       <p className="font-mono text-sm ink-muted">404</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+      <h1 className="mt-3 text-3xl font-extrabold tracking-[-0.03em]">
         Nothing here for a crawler either
       </h1>
       <p className="mt-3 leading-relaxed ink-secondary">

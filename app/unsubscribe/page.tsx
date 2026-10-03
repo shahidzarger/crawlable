@@ -41,7 +41,7 @@ export default async function UnsubscribePage({
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-20">
-      <h1 className="text-3xl font-semibold tracking-tight">{message.heading}</h1>
+      <h1 className="text-3xl font-extrabold tracking-[-0.03em]">{message.heading}</h1>
       <p className="mt-4 text-lg leading-relaxed ink-secondary">{message.body}</p>
       <p className="mt-8 text-sm ink-secondary">
         Questions, or want to be removed from everything including service mail? Email{' '}

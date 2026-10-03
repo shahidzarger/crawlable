@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BrandMark } from './BrandMark';
 import { AI_CRAWLERS } from '@/lib/audit/crawlers';
 import { PLATFORMS } from '@/content/platforms';
 import { identityLine } from '@/lib/legal';
@@ -22,12 +23,8 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
           <div>
-            <div className="flex items-center gap-2 font-semibold tracking-tight">
-              <span
-                aria-hidden
-                className="inline-block h-2.5 w-2.5 rounded-sm"
-                style={{ background: 'var(--accent)' }}
-              />
+            <div className="flex items-center gap-2.5 text-[17px] font-extrabold tracking-[-0.02em]">
+              <BrandMark />
               Crawlable
             </div>
             <p className="mt-3 text-sm ink-secondary">

@@ -109,7 +109,7 @@ export default async function BlogPostPage({ params }: Params) {
       <div className="mt-6 grid gap-12 lg:grid-cols-[minmax(0,1fr)_15rem]">
         <article className="min-w-0">
           <header className="max-w-[68ch]">
-            <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+            <h1 className="text-3xl font-extrabold leading-tight tracking-[-0.03em] sm:text-4xl">
               {post.title}
             </h1>
             <p className="mt-4 text-lg leading-relaxed ink-secondary">{post.description}</p>
@@ -146,7 +146,7 @@ export default async function BlogPostPage({ params }: Params) {
                 <li key={tag}>
                   <Link
                     href={`/blog?tag=${tag}`}
-                    className="rounded-full border px-2.5 py-0.5 font-mono text-[11px] ink-secondary hover:text-[var(--ink-primary)]"
+                    className="rounded-md border px-2.5 py-0.5 font-mono text-[11px] ink-secondary hover:text-[var(--ink-primary)]"
                   >
                     {tag}
                   </Link>

@@ -122,7 +122,7 @@ export function BlogIndex({ posts, tags }: { posts: IndexPost[]; tags: string[] 
                   {post.tags.map((item) => (
                     <li
                       key={item}
-                      className="rounded-full border px-2.5 py-0.5 font-mono text-[11px] ink-secondary"
+                      className="rounded-md border px-2.5 py-0.5 font-mono text-[11px] ink-secondary"
                     >
                       {item}
                     </li>
@@ -151,7 +151,7 @@ function TagButton({
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className="rounded-full border px-3 py-1 font-mono text-xs transition-colors"
+      className="rounded-md border px-3 py-1 font-mono text-xs transition-colors"
       style={
         pressed
           ? { background: 'var(--accent)', color: 'var(--accent-ink)', borderColor: 'var(--accent)' }

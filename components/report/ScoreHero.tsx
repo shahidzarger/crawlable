@@ -124,7 +124,7 @@ function StatTile({
 
   return (
     <div
-      className="rounded-xl px-4 py-3"
+      className="rounded-lg px-4 py-3"
       style={{ background: 'var(--surface-sunken)' }}
     >
       <dt className="text-[11px] uppercase tracking-wider ink-muted">{label}</dt>

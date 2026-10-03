@@ -123,7 +123,7 @@ export function Scanner() {
       {state.phase === 'error' ? (
         <div
           role="alert"
-          className="mt-6 rounded-xl border p-4 text-sm"
+          className="mt-6 rounded-lg border p-4 text-sm"
           style={{ borderColor: 'var(--data-bad)' }}
         >
           <span aria-hidden style={{ color: 'var(--data-bad)' }}>
@@ -142,11 +142,11 @@ function ScanProgress({ step }: { step: number }) {
   return (
     <div className="mt-6 surface-card p-5">
       <div
-        className="relative h-1 overflow-hidden rounded-full"
+        className="relative h-1 overflow-hidden"
         style={{ background: 'var(--surface-sunken)' }}
       >
         <div
-          className="absolute inset-y-0 w-1/3 animate-sweep rounded-full"
+          className="absolute inset-y-0 w-1/3 animate-sweep"
           style={{ background: 'var(--accent)' }}
         />
       </div>

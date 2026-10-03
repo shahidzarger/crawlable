@@ -48,7 +48,6 @@ export default function HomePage() {
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b">
-        <div aria-hidden className="grid-backdrop absolute inset-0 opacity-60" />
         <div className="relative mx-auto max-w-6xl px-4 py-16 sm:py-24">
           {/*
             min-w-0 on both columns is load-bearing: a grid item defaults to
@@ -57,20 +56,12 @@ export default function HomePage() {
           */}
           <div className="grid gap-12 lg:grid-cols-[1.15fr_1fr] lg:gap-14">
             <div className="min-w-0">
-              <p
-                className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs"
-                style={{ borderColor: 'var(--border-strong)' }}
-              >
-                <span
-                  aria-hidden
-                  className="inline-block h-1.5 w-1.5 rounded-full"
-                  style={{ background: 'var(--accent)' }}
-                />
+              <p className="badge px-3 py-1.5 text-xs">
                 {NON_RENDERING_CRAWLERS.length} of {AI_CRAWLERS.length} AI crawlers never run
                 your JavaScript
               </p>
 
-              <h1 className="mt-5 text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.15rem]">
+              <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] tracking-[-0.03em] sm:text-5xl lg:text-[3.15rem]">
                 <span className="block">Is your website invisible</span>
                 <span className="block" style={{ color: 'var(--accent)' }}>
                   to AI search engines?
@@ -97,7 +88,7 @@ export default function HomePage() {
                 {betaFreeDeepAudit() ? (
                   <div className="mb-4">
                     <p
-                      className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
+                      className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold"
                       style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
                     >
                       <span aria-hidden>🚀</span>
@@ -127,7 +118,7 @@ export default function HomePage() {
       {/* The mechanism */}
       <section className="mx-auto max-w-6xl px-4 py-20">
         <div className="max-w-2xl">
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">
             Audit, patch, verify
           </h2>
           <p className="mt-4 text-lg leading-relaxed ink-secondary">
@@ -161,7 +152,7 @@ export default function HomePage() {
       <section className="border-t">
         <div className="mx-auto max-w-6xl px-4 py-20">
           <div className="max-w-2xl">
-            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h2 className="text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">
               Why both SEO and AEO?
             </h2>
             <p className="mt-4 text-lg leading-relaxed ink-secondary">
@@ -245,7 +236,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl px-4 py-20">
           <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
             <div>
-              <h2 className="text-3xl font-semibold tracking-tight">
+              <h2 className="text-3xl font-extrabold tracking-[-0.03em]">
                 This is not another recurring SEO subscription
               </h2>
               <p className="mt-4 leading-relaxed ink-secondary">
@@ -308,7 +299,7 @@ export default function HomePage() {
 
       {/* What you get */}
       <section className="mx-auto max-w-6xl px-4 py-20">
-        <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h2 className="text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">
           The Fix Kit
         </h2>
         <p className="mt-4 max-w-2xl text-lg leading-relaxed ink-secondary">
@@ -348,7 +339,7 @@ export default function HomePage() {
       {/* FAQ */}
       <section id="faq" className="scroll-mt-20 border-t">
         <div className="mx-auto max-w-3xl px-4 py-20">
-          <h2 className="text-3xl font-semibold tracking-tight">Questions</h2>
+          <h2 className="text-3xl font-extrabold tracking-[-0.03em]">Questions</h2>
           <dl className="mt-10 space-y-8">
             {FAQS.map((faq) => (
               <div key={faq.question}>
@@ -389,7 +380,7 @@ function Point({ children }: { children: React.ReactNode }) {
 function Card({ step, title, body }: { step: string; title: string; body: string }) {
   return (
     <div className="surface-card p-6">
-      <span className="font-mono text-xs ink-muted">{step}</span>
+      <span className="font-mono text-xs font-bold tracking-[0.08em] ink-muted">{step}</span>
       <h3 className="mt-3 font-medium leading-snug">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed ink-secondary">{body}</p>
     </div>
@@ -398,11 +389,8 @@ function Card({ step, title, body }: { step: string; title: string; body: string
 
 function Deliverable({ file, body }: { file: string; body: string }) {
   return (
-    <div className="surface-card p-5">
-      <code
-        className="inline-block rounded-md px-2 py-1 font-mono text-xs"
-        style={{ background: 'var(--surface-sunken)', color: 'var(--accent)' }}
-      >
+    <div className="surface-card file-card p-5">
+      <code className="inline-block font-mono text-[15px] font-bold" style={{ color: 'var(--ink-primary)' }}>
         {file}
       </code>
       <p className="mt-3 text-sm leading-relaxed ink-secondary">{body}</p>
@@ -444,23 +432,29 @@ function ComparisonRow({
 
 /** A static illustration of the difference between the two fetches. */
 function TerminalDemo() {
+  /*
+   * Styled after the brand hero asset: pale chrome bar with square window
+   * dots and a centred mono title, then a #0F172A terminal body. The text is
+   * unchanged; only colour spans were added — green prompt, amber string, and
+   * the empty root element on a highlighted row with an amber left rule.
+   */
   return (
-    <div className="surface-card overflow-hidden">
-      <div
-        className="flex items-center gap-2 border-b px-4 py-2.5"
-        style={{ background: 'var(--surface-sunken)' }}
-      >
+    <div className="terminal">
+      <div className="terminal-chrome">
         <span aria-hidden className="flex gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'var(--border-strong)' }} />
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'var(--border-strong)' }} />
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: 'var(--border-strong)' }} />
+          <span className="terminal-dot" />
+          <span className="terminal-dot" />
+          <span className="terminal-dot" />
         </span>
-        <span className="font-mono text-xs ink-muted">what GPTBot receives</span>
+        <span className="absolute inset-x-0 text-center font-mono text-xs">what GPTBot receives</span>
       </div>
 
-      <pre className="code-block overflow-x-auto border-0 p-4 leading-relaxed">
+      <pre className="terminal-body p-5">
         <code>
-          <span className="ink-muted">$ curl -A &quot;GPTBot&quot; https://yoursite.com</span>
+          <span className="term-prompt">$</span>
+          <span className="term-text"> curl -A </span>
+          <span className="term-string">&quot;GPTBot&quot;</span>
+          <span className="term-text"> https://yoursite.com</span>
           {'\n\n'}
           {'<!doctype html>'}
           {'\n'}
@@ -476,21 +470,21 @@ function TerminalDemo() {
           {'\n'}
           {'  <body>'}
           {'\n'}
-          <span style={{ color: 'var(--ink-bad)' }}>{'    <div id="__next"></div>'}</span>
+          <span className="term-row">{'    <div id="__next"></div>'}</span>
           {'\n'}
           {'  </body>'}
           {'\n'}
           {'</html>'}
           {'\n\n'}
-          <span className="ink-muted">{'# 0 words of content. 14 scripts.'}</span>
+          <span>{'# 0 words of content. 14 scripts.'}</span>
           {'\n'}
-          <span style={{ color: 'var(--ink-bad)' }}>
+          <span className="term-flag">
             {'# Everything you wrote is in the JavaScript.'}
           </span>
         </code>
       </pre>
 
-      <div className="border-t px-4 py-3">
+      <div className="terminal-footer px-5 py-3.5">
         <p className="text-xs ink-secondary">
           Your visitors never see this. Neither do you — your browser runs the scripts. The
           crawler does not.

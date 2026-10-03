@@ -8,41 +8,42 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      /*
+       * Brand palette, taken from the Crawlable brand assets (Product Hunt
+       * gallery and thumbnail SVGs). Components style through the CSS
+       * variables in globals.css, not these classes; they are here so a
+       * one-off utility (bg-brand, text-slate-600) matches the brand exactly.
+       */
       colors: {
-        ink: {
-          950: '#08090c',
-          900: '#0d0f14',
-          800: '#151821',
-          700: '#1f2430',
-          600: '#2c3342',
-          500: '#414a5c',
-          400: '#6b7689',
-          300: '#98a1b2',
-          200: '#c6ccd8',
-          100: '#e6e9ef',
+        brand: {
+          DEFAULT: '#15803D', // emerald accent, square mark, keys in code
+          bright: '#4ADE80', // terminal prompt, accent on dark
+          soft: '#F0FDF4', // badge fill
         },
-        // Brand accent. Used for interface chrome and text, never as a data mark.
-        signal: {
-          DEFAULT: '#3ddc97',
-          dim: '#2bb97c',
-          glow: 'rgba(61, 220, 151, 0.18)',
+        slate: {
+          950: '#020617',
+          900: '#0F172A', // headings, terminal body, outlines
+          800: '#1E293B', // terminal highlight row
+          700: '#334155', // code text
+          600: '#475569', // body copy
+          500: '#64748B', // muted labels
+          400: '#94A3B8', // dim (decorative only — fails AA as text)
+          300: '#CBD5E1', // strong borders, window dots
+          200: '#E2E8F0', // borders, hard offset shadow
+          100: '#F1F5F9', // grid lines
+          50: '#F8FAFC', // sunken surfaces, window chrome
         },
-        // Status palette for data marks. Validated with the palette checker:
-        // OKLCH lightness band, chroma floor, CVD separation, normal-vision
-        // floor and surface contrast all pass in both modes. Never reused as
-        // categorical series colours, and always paired with an icon and label.
         status: {
-          good: '#1fa56f',
-          warn: '#b8850a',
-          bad: '#d43a4c',
-          'good-light': '#0f8a5a',
-          'warn-light': '#a8730a',
-          'bad-light': '#c22f43',
+          good: '#15803D',
+          warn: '#B45309',
+          bad: '#DC2626',
+          highlight: '#FBBF24',
         },
       },
       fontFamily: {
-        sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Inter', 'sans-serif'],
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+        // --font-sans / --font-mono are set by next/font in app/fonts.ts.
+        sans: ['var(--font-sans)', 'Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        mono: ['var(--font-mono)', 'JetBrains Mono', 'SFMono-Regular', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
       },
       keyframes: {
         'fade-up': {

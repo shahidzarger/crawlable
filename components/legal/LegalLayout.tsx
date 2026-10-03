@@ -38,7 +38,7 @@ export function LegalLayout({
         / {title}
       </nav>
 
-      <h1 className="mt-4 text-4xl font-semibold tracking-tight">{title}</h1>
+      <h1 className="mt-4 text-4xl font-extrabold tracking-[-0.03em]">{title}</h1>
 
       <p className="mt-4 text-lg leading-relaxed ink-secondary">{summary}</p>
 
@@ -90,7 +90,7 @@ export function Clause({
 }) {
   return (
     <section>
-      <h2 className="flex gap-3 text-2xl font-semibold tracking-tight">
+      <h2 className="flex gap-3 text-2xl font-bold tracking-[-0.02em]">
         <span className="mt-1.5 font-mono text-xs ink-muted tabular-nums">
           {String(n).padStart(2, '0')}
         </span>

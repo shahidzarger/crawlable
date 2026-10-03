@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { inter, jetbrainsMono } from './fonts';
 import { SiteHeader } from '@/components/SiteHeader';
 import { SiteFooter } from '@/components/SiteFooter';
 import { PRODUCTION_ORIGIN, SITE_URL } from '@/lib/site-url';
@@ -60,13 +61,23 @@ export const metadata: Metadata = {
     images: ['/og.png'],
   },
   robots: { index: true, follow: true },
-  icons: { icon: '/icon.png', apple: '/icon.png' },
+  /*
+   * favicon.svg is the bare brand lockup (sharp at 16px); icon.png and
+   * apple-icon.png are the full thumbnail asset, card and grid included.
+   */
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icon.png', type: 'image/png', sizes: '512x512' },
+    ],
+    apple: { url: '/apple-icon.png', sizes: '180x180' },
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#08090c' },
-    { media: '(prefers-color-scheme: light)', color: '#f7f8fa' },
+    { media: '(prefers-color-scheme: dark)', color: '#020617' },
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
   ],
   width: 'device-width',
   initialScale: 1,
@@ -78,7 +89,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <head>
         {/*
           Site-wide Organization and SoftwareApplication markup. It sits in the

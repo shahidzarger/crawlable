@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 40 160 160" width="160" height="160">
+  <title>Crawlable</title>
+  <!-- The brand lockup from the thumbnail asset (geometric C + emerald square),
+       unchanged, on the asset's white card without its frame and grid, which
+       are illegible at favicon sizes. The white tile keeps the dark C visible
+       on dark browser tabs. -->
+  <rect x="40" y="40" width="160" height="160" rx="28" fill="#FFFFFF"/>
+  <path fill="#0F172A" d="M167.49 80.15 A62 62 0 1 0 167.49 159.85 L147.58 143.14 A36 36 0 1 1 147.58 96.86 Z"/>
+  <rect x="151" y="107" width="26" height="26" fill="#15803D"/>
+</svg>

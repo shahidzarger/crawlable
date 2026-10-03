@@ -100,7 +100,7 @@ export default async function CrawlerPage({
         / {crawler.token}
       </nav>
 
-      <h1 className="mt-4 font-mono text-4xl font-semibold tracking-tight">{crawler.token}</h1>
+      <h1 className="mt-4 font-mono text-4xl font-extrabold tracking-[-0.03em]">{crawler.token}</h1>
       <p className="mt-3 text-lg ink-secondary">
         {crawler.operator} · {purpose.label}
       </p>
@@ -119,7 +119,7 @@ export default async function CrawlerPage({
         />
       </div>
 
-      <h2 className="mt-12 text-2xl font-semibold tracking-tight">What it does</h2>
+      <h2 className="mt-12 text-2xl font-bold tracking-[-0.02em]">What it does</h2>
       <p className="mt-3 leading-relaxed ink-secondary">
         {crawler.token} {purpose.what}. {crawler.note}
       </p>
@@ -137,7 +137,7 @@ export default async function CrawlerPage({
         </p>
       )}
 
-      <h2 className="mt-12 text-2xl font-semibold tracking-tight">
+      <h2 className="mt-12 text-2xl font-bold tracking-[-0.02em]">
         Should you block {crawler.token}?
       </h2>
       <p className="mt-3 leading-relaxed ink-secondary">{purpose.blocking}</p>
@@ -183,12 +183,12 @@ export default async function CrawlerPage({
 
       {note ? (
         <>
-          <h2 className="mt-12 text-2xl font-semibold tracking-tight">
+          <h2 className="mt-12 text-2xl font-bold tracking-[-0.02em]">
             Verifying a real {crawler.token} request
           </h2>
           <p className="mt-3 leading-relaxed ink-secondary">{note.verification}</p>
 
-          <h2 className="mt-12 text-2xl font-semibold tracking-tight">
+          <h2 className="mt-12 text-2xl font-bold tracking-[-0.02em]">
             The mistake people make
           </h2>
           <div className="mt-3 flex gap-3">
@@ -202,7 +202,7 @@ export default async function CrawlerPage({
 
       {related.length > 0 ? (
         <>
-          <h2 className="mt-12 text-2xl font-semibold tracking-tight">
+          <h2 className="mt-12 text-2xl font-bold tracking-[-0.02em]">
             {crawler.operator}&apos;s other crawlers
           </h2>
           <ul className="mt-4 space-y-2">
@@ -255,7 +255,7 @@ function Fact({
         : 'var(--ink-primary)';
 
   return (
-    <div className="rounded-xl px-4 py-3" style={{ background: 'var(--surface-sunken)' }}>
+    <div className="rounded-lg px-4 py-3" style={{ background: 'var(--surface-sunken)' }}>
       <div className="text-[11px] uppercase tracking-wider ink-muted">{label}</div>
       <div className="mt-1 font-semibold" style={{ color }}>
         {value}

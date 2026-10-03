@@ -3,92 +3,145 @@
 @tailwind utilities;
 
 /*
- * Design tokens.
+ * Design tokens — the Crawlable brand palette.
  *
- * Dark is the default surface and light is a deliberate second theme with its
- * own steps, not an inverted copy. The status colours are the validated data
- * palette from tailwind.config.ts; they appear on marks only, never on text.
- * Text that needs a status colour uses --ink-good / --ink-warn / --ink-bad.
+ * Every value is taken from the brand assets (the Product Hunt gallery and
+ * thumbnail SVGs): white canvas with a #F1F5F9 32px engineering grid, slate
+ * #0F172A for headings and outlines, #475569 body copy, #E2E8F0 / #CBD5E1
+ * borders, and the #15803D emerald accent used for the square mark.
  *
- * Every --ink-* token clears WCAG 2.x AA (4.5:1) against every --surface-*
- * in its own theme, with a margin so rounding never tips one under.
- * tests/contrast.test.ts asserts it. --ink-muted was the same #6b7689 in both
- * themes and failed against every surface in both — 3.86:1 at worst, on every
- * page of the site. A shared value for two opposite backgrounds cannot be
- * right for both, which is why each theme now has its own.
+ * Light is the brand and the default. The dark variant is for visitors whose
+ * OS asks for it; it is built from the same slate scale and the asset
+ * terminal's #4ADE80, not invented separately.
+ *
+ * Two brand colours are deliberately NOT text tokens: #94A3B8 (the assets'
+ * "dim" grey) measures 2.56:1 on white and #FBBF24 (the terminal highlight)
+ * 1.67:1, both far under WCAG AA. They appear only as decoration and inside
+ * the dark terminal, where they pass. tests/contrast.test.ts holds every
+ * --ink-* token to 4.5:1 against every surface in both themes.
  */
 
 :root {
-  --surface: #08090c;
-  --surface-raised: #0d0f14;
-  --surface-sunken: #151821;
-  --border: #1f2430;
-  --border-strong: #2c3342;
-
-  --ink-primary: #e6e9ef;
-  --ink-secondary: #98a1b2;
-  --ink-muted: #788396;
-  --ink-bad: #da5564;
-  --ink-good: #1fa56f;
-  --ink-warn: #b8850a;
-
-  --accent: #3ddc97;
-  --accent-ink: #08090c;
-
-  --data-good: #1fa56f;
-  --data-warn: #b8850a;
-  --data-bad: #d43a4c;
-
-  --grid: rgba(255, 255, 255, 0.06);
-}
-
-:root[data-theme='light'] {
-  --surface: #f7f8fa;
+  --surface: #ffffff;
   --surface-raised: #ffffff;
-  --surface-sunken: #eef0f4;
-  --border: #dfe3e9;
-  --border-strong: #c6ccd8;
+  --surface-sunken: #f8fafc;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
 
-  --ink-primary: #12151c;
-  --ink-secondary: #4b5567;
-  --ink-muted: #626c7e;
-  --ink-bad: #c22f43;
-  --ink-good: #0d7b50;
-  --ink-warn: #916309;
+  --ink-primary: #0f172a;
+  --ink-secondary: #475569;
+  --ink-muted: #64748b;
+  --ink-bad: #dc2626;
+  --ink-good: #15803d;
+  --ink-warn: #b45309;
 
-  --accent: #0d7b50;
+  --accent: #15803d;
   --accent-ink: #ffffff;
+  --accent-soft: #f0fdf4;
 
-  --data-good: #0f8a5a;
-  --data-warn: #a8730a;
-  --data-bad: #c22f43;
+  --data-good: #15803d;
+  --data-warn: #d97706;
+  --data-bad: #dc2626;
 
-  --grid: rgba(0, 0, 0, 0.07);
+  --grid: #f1f5f9;
+  /* The hard, un-blurred offset shadow under every card in the assets. */
+  --shadow: #e2e8f0;
+  --outline: #0f172a;
+
+  /* Code inside cards (light), and the terminal (always dark). */
+  --code-text: #334155;
+  --code-key: #15803d;
+  --term-chrome: #f8fafc;
+  --term-chrome-ink: #64748b;
+  --term-dot: #cbd5e1;
+  --term-bg: #0f172a;
+  --term-row: #1e293b;
+  --term-text: #f8fafc;
+  --term-dim: #94a3b8;
+  --term-prompt: #4ade80;
+  --term-string: #fde68a;
+  --term-flag: #fbbf24;
 }
 
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme='dark']) {
-    --surface: #f7f8fa;
-    --surface-raised: #ffffff;
-    --surface-sunken: #eef0f4;
-    --border: #dfe3e9;
-    --border-strong: #c6ccd8;
+:root[data-theme='dark'] {
+  --surface: #020617;
+  --surface-raised: #0f172a;
+  --surface-sunken: #111a2e;
+  --border: #1e293b;
+  --border-strong: #334155;
 
-    --ink-primary: #12151c;
-    --ink-secondary: #4b5567;
-    --ink-muted: #626c7e;
-    --ink-bad: #c22f43;
-    --ink-good: #0d7b50;
-    --ink-warn: #916309;
+  --ink-primary: #f8fafc;
+  --ink-secondary: #cbd5e1;
+  --ink-muted: #94a3b8;
+  --ink-bad: #f87171;
+  --ink-good: #4ade80;
+  --ink-warn: #fbbf24;
 
-    --accent: #0d7b50;
-    --accent-ink: #ffffff;
+  --accent: #4ade80;
+  --accent-ink: #0f172a;
+  --accent-soft: #052e16;
 
-    --data-good: #0f8a5a;
-    --data-warn: #a8730a;
-    --data-bad: #c22f43;
+  --data-good: #22c55e;
+  --data-warn: #f59e0b;
+  --data-bad: #ef4444;
 
-    --grid: rgba(0, 0, 0, 0.07);
+  --grid: #0b1222;
+  --shadow: #000000;
+  --outline: #cbd5e1;
+
+  --code-text: #cbd5e1;
+  --code-key: #4ade80;
+  --term-chrome: #1e293b;
+  --term-chrome-ink: #94a3b8;
+  --term-dot: #475569;
+  --term-bg: #0f172a;
+  --term-row: #1e293b;
+  --term-text: #f8fafc;
+  --term-dim: #94a3b8;
+  --term-prompt: #4ade80;
+  --term-string: #fde68a;
+  --term-flag: #fbbf24;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --surface: #020617;
+    --surface-raised: #0f172a;
+    --surface-sunken: #111a2e;
+    --border: #1e293b;
+    --border-strong: #334155;
+
+    --ink-primary: #f8fafc;
+    --ink-secondary: #cbd5e1;
+    --ink-muted: #94a3b8;
+    --ink-bad: #f87171;
+    --ink-good: #4ade80;
+    --ink-warn: #fbbf24;
+
+    --accent: #4ade80;
+    --accent-ink: #0f172a;
+    --accent-soft: #052e16;
+
+    --data-good: #22c55e;
+    --data-warn: #f59e0b;
+    --data-bad: #ef4444;
+
+    --grid: #0b1222;
+    --shadow: #000000;
+    --outline: #cbd5e1;
+
+    --code-text: #cbd5e1;
+    --code-key: #4ade80;
+    --term-chrome: #1e293b;
+    --term-chrome-ink: #94a3b8;
+    --term-dot: #475569;
+    --term-bg: #0f172a;
+    --term-row: #1e293b;
+    --term-text: #f8fafc;
+    --term-dim: #94a3b8;
+    --term-prompt: #4ade80;
+    --term-string: #fde68a;
+    --term-flag: #fbbf24;
   }
 }
 
@@ -103,10 +156,30 @@
   }
 
   body {
-    background: var(--surface);
+    /*
+     * The engineering grid from the brand assets: 1px #F1F5F9 lines every
+     * 32px, across the whole canvas. At 1.07:1 against white it reads as
+     * texture, never as content, and cards sit on it as opaque white.
+     */
+    background-color: var(--surface);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-position: -1px -1px;
     color: var(--ink-primary);
+    font-family: var(--font-sans), Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial,
+      sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-mono), 'JetBrains Mono', SFMono-Regular, ui-monospace, Menlo, Consolas,
+      monospace;
   }
 
   ::selection {
@@ -122,10 +195,131 @@
 }
 
 @layer components {
+  /*
+   * Cards: white, a 1px slate border, 12px radius, and the brand's hard offset
+   * shadow — a solid #E2E8F0 copy of the card shifted 6px down and right, no
+   * blur. It is what makes the assets look engineered rather than soft.
+   */
   .surface-card {
     background: var(--surface-raised);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 12px;
+    box-shadow: 6px 6px 0 0 var(--shadow);
+  }
+
+  /* Fix Kit file cards carry the assets' 4px emerald rule along the top edge. */
+  .file-card {
+    box-shadow:
+      inset 0 4px 0 0 var(--accent),
+      6px 6px 0 0 var(--shadow);
+  }
+
+  /* The square brand mark: no radius, ever. Sized by the caller. */
+  .brand-mark {
+    display: inline-block;
+    flex-shrink: 0;
+    background: var(--accent);
+    border-radius: 0;
+  }
+
+  /*
+   * Status badge, as in the assets: 6px radius, emerald hairline, the pale
+   * emerald fill, a small square marker and monospace label.
+   */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    background: var(--accent-soft);
+    color: var(--ink-good);
+    font-family: var(--font-mono), 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+  .badge::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    background: var(--accent);
+  }
+
+  /*
+   * Outline callout: white, 1.5px slate outline. The asset uses it for the
+   * hero badge and the "Verified for…" pill; here it is the neutral pill.
+   */
+  .callout {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1.5px solid var(--outline);
+    border-radius: 8px;
+    background: var(--surface-raised);
+    color: var(--ink-primary);
+    font-weight: 600;
+  }
+
+  /*
+   * Terminal window, matching the hero asset: pale chrome bar with three
+   * square slate dots and a centred mono title, then a #0F172A body. The body
+   * is dark in both themes — it is a terminal, not a surface.
+   */
+  .terminal {
+    overflow: hidden;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    background: var(--term-bg);
+    box-shadow: 8px 8px 0 0 var(--shadow);
+  }
+  .terminal-chrome {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 1rem;
+    height: 2.75rem;
+    background: var(--term-chrome);
+    border-bottom: 1px solid var(--border);
+    color: var(--term-chrome-ink);
+  }
+  .terminal-dot {
+    width: 10px;
+    height: 10px;
+    background: var(--term-dot);
+  }
+  .terminal-body {
+    background: var(--term-bg);
+    color: var(--term-dim);
+    font-family: var(--font-mono), 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+  .term-prompt {
+    color: var(--term-prompt);
+  }
+  .term-text {
+    color: var(--term-text);
+  }
+  .term-string {
+    color: var(--term-string);
+  }
+  .term-flag {
+    color: var(--term-flag);
+  }
+  /* The highlighted line: slate row with an amber rule on the left edge. */
+  .term-row {
+    display: inline-block;
+    min-width: 100%;
+    background: var(--term-row);
+    box-shadow: inset 3px 0 0 var(--term-flag);
+    color: var(--term-text);
+  }
+  .terminal-footer {
+    background: var(--surface-raised);
+    border-top: 1px solid var(--border);
   }
 
   .ink-secondary {
@@ -154,14 +348,15 @@
     background: var(--accent);
     color: var(--accent-ink);
     font-weight: 600;
-    border-radius: 10px;
+    border-radius: 8px;
+    border: 1.5px solid var(--accent);
     transition:
       transform 0.12s ease,
       filter 0.12s ease;
   }
 
   .btn-primary:hover:not(:disabled) {
-    filter: brightness(1.06);
+    filter: brightness(1.08);
   }
 
   .btn-primary:active:not(:disabled) {
@@ -174,10 +369,11 @@
   }
 
   .btn-ghost {
-    border: 1px solid var(--border-strong);
+    border: 1.5px solid var(--outline);
     color: var(--ink-primary);
-    border-radius: 10px;
-    background: transparent;
+    font-weight: 500;
+    border-radius: 8px;
+    background: var(--surface-raised);
     transition: background 0.12s ease;
   }
 
@@ -186,9 +382,9 @@
   }
 
   .field {
-    background: var(--surface-sunken);
+    background: var(--surface-raised);
     border: 1px solid var(--border-strong);
-    border-radius: 10px;
+    border-radius: 8px;
     color: var(--ink-primary);
   }
 
@@ -213,7 +409,7 @@
    */
   .field:focus-visible {
     border-color: var(--accent);
-    border-radius: 10px;
+    border-radius: 8px;
   }
 
   /*
@@ -236,11 +432,15 @@
       transform 200ms ease;
   }
 
+  /*
+   * The hovered tier lifts off its hard shadow and takes an emerald one —
+   * the brand's offset shadow, not a soft glow.
+   */
   .tier-card:hover,
   .tier-card:focus-within {
     border-color: var(--accent);
-    box-shadow: 0 18px 40px -24px var(--accent);
-    transform: translateY(-3px);
+    box-shadow: 8px 8px 0 0 var(--accent);
+    transform: translate(-2px, -2px);
   }
 
   /*
@@ -266,11 +466,13 @@
     }
   }
 
+  /* Code inside cards, as in the Fix Kit assets: pale panel, 6px radius. */
   .code-block {
     background: var(--surface-sunken);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    border-radius: 6px;
+    color: var(--code-text);
+    font-family: var(--font-mono), 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
     font-size: 12.5px;
     line-height: 1.65;
     overflow-x: auto;
@@ -349,7 +551,7 @@
     border-top: 1px solid var(--border);
   }
   .prose-blog :where(:not(pre) > code):not(:where(.not-prose, .not-prose *)) {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-family: var(--font-mono), 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
     font-size: 0.875em;
     background: var(--surface-sunken);
     border: 1px solid var(--border);
@@ -363,8 +565,9 @@
     border-radius: 10px;
     padding: 1rem 1.1rem;
     overflow-x: auto;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-family: var(--font-mono), 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
     font-size: 0.8125rem;
+    color: var(--code-text);
     line-height: 1.65;
   }
   .prose-blog :where(table):not(:where(.not-prose, .not-prose *)) {
@@ -388,11 +591,13 @@
     letter-spacing: 0.04em;
   }
 
+  /* Same 32px grid as the canvas; kept for sections that set their own fill. */
   .grid-backdrop {
     background-image:
       linear-gradient(var(--grid) 1px, transparent 1px),
       linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-    background-size: 48px 48px;
+    background-size: 32px 32px;
+    background-position: -1px -1px;
   }
 }
 

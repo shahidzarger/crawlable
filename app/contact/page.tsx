@@ -49,7 +49,7 @@ export default function ContactPage() {
         / Contact
       </nav>
 
-      <h1 className="mt-4 text-4xl font-semibold tracking-tight">Contact us</h1>
+      <h1 className="mt-4 text-4xl font-extrabold tracking-[-0.03em]">Contact us</h1>
 
       <p className="mt-4 text-lg leading-relaxed ink-secondary">
         There is no ticket queue and no chatbot in front of this form. Messages go
@@ -73,7 +73,7 @@ export default function ContactPage() {
       </p>
 
       <section className="mt-16">
-        <h2 className="text-2xl font-semibold tracking-tight">
+        <h2 className="text-2xl font-bold tracking-[-0.02em]">
           What to include, by topic
         </h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">

@@ -54,10 +54,14 @@ function ratio(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+/*
+ * Light is the brand default (:root); dark is the OS-preference variant,
+ * reachable through the media query or an explicit data-theme.
+ */
 const THEMES = {
-  dark: tokens(block(/^:root\s*\{/m)),
-  'light (data-theme)': tokens(block(/:root\[data-theme='light'\]\s*\{/)),
-  'light (prefers-color-scheme)': tokens(block(/:root:not\(\[data-theme='dark'\]\)\s*\{/)),
+  light: tokens(block(/^:root\s*\{/m)),
+  'dark (data-theme)': tokens(block(/:root\[data-theme='dark'\]\s*\{/)),
+  'dark (prefers-color-scheme)': tokens(block(/:root:not\(\[data-theme='light'\]\)\s*\{/)),
 };
 
 const TEXT = ['ink-primary', 'ink-secondary', 'ink-muted', 'ink-good', 'ink-warn', 'ink-bad'];
@@ -97,7 +101,30 @@ describe('colour contrast', () => {
     });
   }
 
-  it('keeps both light-theme blocks identical, so the toggle and the OS agree', () => {
-    expect(THEMES['light (data-theme)']).toEqual(THEMES['light (prefers-color-scheme)']);
+  it('keeps both dark-theme blocks identical, so the toggle and the OS agree', () => {
+    expect(THEMES['dark (data-theme)']).toEqual(THEMES['dark (prefers-color-scheme)']);
+  });
+
+  /*
+   * The default theme IS the brand. These are the exact values in the brand
+   * assets (Product Hunt gallery + thumbnail SVGs); a token edit that drifts
+   * from them should be a deliberate brand change, not an accident.
+   */
+  it('uses the brand palette for the default theme', () => {
+    expect(THEMES.light).toMatchObject({
+      surface: '#ffffff',
+      'surface-sunken': '#f8fafc',
+      border: '#e2e8f0',
+      'border-strong': '#cbd5e1',
+      'ink-primary': '#0f172a',
+      'ink-secondary': '#475569',
+      'ink-muted': '#64748b',
+      accent: '#15803d',
+      'accent-soft': '#f0fdf4',
+      grid: '#f1f5f9',
+      shadow: '#e2e8f0',
+      'term-bg': '#0f172a',
+      'term-prompt': '#4ade80',
+    });
   });
 });
