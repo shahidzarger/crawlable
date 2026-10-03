@@ -214,14 +214,6 @@
       6px 6px 0 0 var(--shadow);
   }
 
-  /* The square brand mark: no radius, ever. Sized by the caller. */
-  .brand-mark {
-    display: inline-block;
-    flex-shrink: 0;
-    background: var(--accent);
-    border-radius: 0;
-  }
-
   /*
    * Status badge, as in the assets: 6px radius, emerald hairline, the pale
    * emerald fill, a small square marker and monospace label.

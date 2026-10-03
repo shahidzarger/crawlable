@@ -8,7 +8,7 @@ export function SiteHeader() {
       style={{ background: 'color-mix(in srgb, var(--surface) 88%, transparent)' }}
     >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2.5 text-[17px] font-extrabold tracking-[-0.02em]">
+        <Link href="/" className="flex items-center gap-2 text-[17px] font-extrabold tracking-[-0.02em]">
           <BrandMark />
           Crawlable
         </Link>

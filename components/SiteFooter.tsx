@@ -23,7 +23,7 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
           <div>
-            <div className="flex items-center gap-2.5 text-[17px] font-extrabold tracking-[-0.02em]">
+            <div className="flex items-center gap-2 text-[17px] font-extrabold tracking-[-0.02em]">
               <BrandMark />
               Crawlable
             </div>
