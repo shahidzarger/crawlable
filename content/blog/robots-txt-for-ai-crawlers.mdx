@@ -1,0 +1,88 @@
+---
+title: "How to Configure robots.txt for AI Crawlers (Without Compromising Security)"
+description: "Allow the AI crawlers that get you cited, opt out of the ones that only train models, and avoid treating robots.txt as a security control. Includes a ready-made file."
+date: 2026-10-03
+author: Crawlable
+tags: [robots-txt, ai-crawlers, technical-seo]
+---
+
+Most robots.txt advice about AI treats every AI bot alike: block them all, or allow them all. Both get it wrong. AI companies run **separate crawlers for separate jobs**. Some collect training data; others fetch pages so an answer engine can cite them. You can opt out of training and stay fully visible in AI search, but only if you name the right bots.
+
+This guide sorts the major AI crawlers by job and gives you a ready-made robots.txt. It also covers the security mistakes people make while editing it.
+
+## Three jobs, three kinds of crawler
+
+Every AI crawler does one of three things:
+
+- **Training crawlers** collect content that may be used to train future models. Blocking them keeps your content out of training sets. It doesn't remove you from any answer anyone sees today.
+- **Search-index crawlers** build the index that an answer engine retrieves from. Block them and you can't be cited, because you're not in the pool of sources.
+- **User-action fetchers** retrieve a specific page because a person just asked about it, for example by pasting your URL into a chat. Block them and the assistant tells the user it can't read your page.
+
+Here's how the crawlers Crawlable checks fall into those groups:
+
+<CrawlerTable />
+
+## What each operator says, in its own words
+
+These details come from each company's documentation. They differ in ways that matter.
+
+**OpenAI.** [OpenAI's crawler documentation](https://developers.openai.com/api/docs/bots) separates three bots. **GPTBot** crawls content that may be used for training; disallowing it "indicates a site's content should not be used in training generative AI foundation models." **OAI-SearchBot** surfaces sites in ChatGPT search, and sites that opt out "will not be shown in ChatGPT search answers, though can still appear as navigational links." **ChatGPT-User** acts on user requests, and "because these actions are initiated by a user, robots.txt rules may not apply." OpenAI says robots.txt changes take about 24 hours to take effect.
+
+**Anthropic.** [Anthropic describes three bots](https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler). **ClaudeBot** collects content that could contribute to model training. **Claude-SearchBot** indexes content to improve search results. **Claude-User** fetches pages when a Claude user asks a question. Anthropic says blocking either of the last two "may reduce your site's visibility." All three honor robots.txt, and Anthropic also supports the non-standard `Crawl-delay` directive.
+
+**Perplexity.** [Perplexity's documentation](https://docs.perplexity.ai/guides/bots) says **PerplexityBot** surfaces and links websites in its search results and should be allowed if you want to appear. **Perplexity-User** fetches pages for user requests and "generally ignores robots.txt rules."
+
+**Google.** **Google-Extended** isn't a crawler at all. Google's documentation says it ["doesn't have a separate HTTP request user agent string"](https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers). It's a control token that governs whether content Google already crawls may be used to train Gemini models and to ground answers in Gemini Apps and Vertex AI. Google is explicit that it "does not impact a site's inclusion in Google Search nor is it used as a ranking signal." AI Overviews and AI Mode are part of Google Search, so they follow Googlebot and your snippet controls, not Google-Extended.
+
+**Common Crawl.** **CCBot** builds Common Crawl's open web archive, and it [respects robots.txt](https://commoncrawl.org/ccbot). That archive is a common source of language-model training data; filtered Common Crawl text was the largest part of GPT-3's training mix, [according to the GPT-3 paper](https://arxiv.org/abs/2005.14165). It feeds no answer engine directly, so blocking it is purely a training decision.
+
+The two "user" fetchers deserve a second look. OpenAI and Perplexity both say robots.txt may not stop a fetch that a person explicitly asked for. Treat those rules as a preference, not a guarantee.
+
+## A robots.txt that allows citations and blocks training
+
+This file, generated from the same registry Crawlable's scanner uses, lets every answer-engine crawler in and opts out of every training crawler:
+
+<RobotsTemplate />
+
+A few things to adapt before you use it:
+
+- **Change the `Disallow` paths** to your own private areas, and repeat them in **every** group. That second part is the most common mistake, explained next.
+- **Change the `Sitemap` line** to your own absolute sitemap URL.
+- **Add `User-agent: CCBot`** to the training group if you also want out of Common Crawl's archive.
+- **Want to stay in training data?** Move the training bots into the first group. Visibility won't change either way.
+
+### The group rule that catches everyone
+
+Under the robots.txt standard, [RFC 9309](https://www.rfc-editor.org/rfc/rfc9309), a crawler follows the group that names it **and ignores the `*` group entirely**. If you write `User-agent: GPTBot` with only `Allow: /`, GPTBot is now allowed into `/admin/`, even though your `*` group disallows it. Every named group needs its own copy of your private-path rules, which is why the template repeats them.
+
+<AuditCta />
+
+## Without compromising security
+
+robots.txt is a set of **instructions for well-behaved crawlers**. It has no enforcement behind it. Four consequences follow.
+
+**1. Never use it to hide anything.** The file is public; anyone can read `/robots.txt`. A line like `Disallow: /internal-reports-2026/` advertises exactly the path you didn't want found. Protect private areas with authentication, and keep pages out of search indexes with a `noindex` meta tag or header, which only works if the crawler is allowed to fetch the page and see it.
+
+**2. Don't trust a user-agent string.** Any scraper can call itself GPTBot. Google warns that its own user agent "is often spoofed" and documents [verification by reverse DNS or published IP ranges](https://developers.google.com/search/docs/crawling-indexing/googlebot). OpenAI publishes IP addresses for its crawlers too. If you allow a bot past rate limits or a firewall because of its name, check its IP as well.
+
+**3. Enforce at the edge, not in the file.** If a bot ignores your rules or hammers your server, block or rate-limit it in your CDN or firewall. robots.txt can't stop it.
+
+**4. Check that your firewall isn't doing the opposite.** Many CDN and WAF products offer one-click "block AI bots" or bot-fight settings. Switched on, they can block OAI-SearchBot and PerplexityBot even when your robots.txt allows them. The file says yes, the network says no, and you disappear from AI answers without a trace in your own config.
+
+## Common mistakes
+
+- **Blocking everything with `User-agent: *` and `Disallow: /`.** This often happens because a staging config shipped to production, and it removes you from Google and every answer engine together.
+- **Blocking "AI" by blocking the search bots.** Copying a list that includes OAI-SearchBot, Claude-SearchBot or PerplexityBot removes you from the products you probably want to appear in.
+- **Expecting Google-Extended to hide you from AI Overviews.** It doesn't. AI Overviews are part of Google Search.
+- **Relying on outdated tokens.** Crawlers get renamed and split. The list above reflects the operators' current documentation, and that's the source to re-check, not a two-year-old blog post.
+- **Forgetting that changes aren't instant.** OpenAI quotes about 24 hours. Other operators re-read the file on their own schedule.
+
+## Test it
+
+Fetch your live file and read it as a crawler would:
+
+```bash
+curl -sS https://yoursite.com/robots.txt
+```
+
+Then check each group against the table above, and confirm the URL actually returns 200 rather than a bot challenge or a redirect. Crawlable's free scan parses your robots.txt and evaluates it against every crawler in the table, including rules you inherited from a plugin or a CMS template you forgot about.

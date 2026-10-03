@@ -1,0 +1,163 @@
+---
+title: "How to Create and Optimize an llms.txt File for Your Website"
+description: "The llms.txt format, where the file goes, how to keep it token-efficient, working examples for Next.js and static sites, and an honest account of who uses it."
+date: 2026-10-03
+author: Crawlable
+tags: [llms-txt, ai-crawlers, nextjs, technical-seo]
+---
+
+An `llms.txt` file is a Markdown file at the root of your site. It tells a language model, in a few hundred words, what your site is and which pages matter. Think of it as a curated table of contents for AI agents: a page in the format they read best, at an address they can guess.
+
+This guide covers the format, where to put the file, how to keep it token-efficient, and working examples for Next.js and static sites. It starts with a candid look at what the file can and can't do for you, because it's often oversold.
+
+## What llms.txt is (and what it isn't)
+
+Jeremy Howard proposed llms.txt in September 2024, and the [specification at llmstxt.org](https://llmstxt.org/) was revised in August 2026. The problem it solves is real. Web pages are built for browsers, full of navigation, scripts and layout. An AI agent working inside a limited context window does better with a short, clean, link-rich summary than with crawled HTML.
+
+The specification is explicit about its purpose: it expected llms.txt to be useful mainly "for *inference* rather than *training*." In other words, it's for agents and assistants that read your site to answer a question now, not for training crawlers.
+
+What it **isn't** is a ranking signal for Google. Google's May 2026 guide to its AI features says ["you don't need to create new machine readable files, AI text files, markup, or Markdown to appear in Google Search."](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide) At the same time, Google's Chrome team added an [llms.txt audit to Lighthouse](https://developer.chrome.com/docs/lighthouse/agentic-browsing/llms-txt) under "Agentic Browsing." It reasons that "without this file, agents may spend more time crawling the site to understand its high-level structure." The AI labs publish llms.txt files for their own developer documentation.
+
+So here's the fair summary. **llms.txt helps agents, not search rankings.** It costs one small file, carries no risk, and can only help the agent case. It's worth creating, and not worth expecting traffic from.
+
+## The format, line by line
+
+The specification defines a strict order. Only the first element is required.
+
+1. **An H1 with the name of the site or project.** This is the only required section.
+2. **A blockquote** with a short summary containing the key information needed to understand the rest of the file.
+3. **Zero or more sections of ordinary Markdown** (paragraphs or lists, but no headings) with more detail.
+4. **Zero or more H2 sections that are "file lists".** Each item is a Markdown link, optionally followed by a colon and a note: `- [name](url): notes`.
+5. **An optional section literally titled `## Optional`.** By convention, it holds links an agent can skip when it's short on context.
+
+Here's a complete, valid example for a hypothetical SaaS product:
+
+```markdown
+# Acme Analytics
+
+> Acme Analytics is a privacy-first web analytics tool for small
+> businesses. No cookies, GDPR-compliant by design, from $9/month.
+
+Acme does not use cookies or collect personal data, so sites using it
+do not need a consent banner for analytics.
+
+## Docs
+
+- [Quick start](https://acme.example/docs/quick-start.md): add the script tag and see data in five minutes
+- [Tracking API](https://acme.example/docs/api.md): send custom events from the browser or a server
+
+## Product
+
+- [Pricing](https://acme.example/pricing): three plans, monthly or annual billing
+- [Comparison with Google Analytics](https://acme.example/vs/google-analytics): feature and privacy differences
+
+## Optional
+
+- [Changelog](https://acme.example/changelog): release notes since 2023
+```
+
+The specification also recommends offering clean Markdown versions of important pages, at the page URL with `.md` appended. That's why the Docs links above point to `.md` files.
+
+## Optimizing for token density
+
+Every token an agent spends reading your llms.txt is one it can't spend on your content. Optimizing the file means making each line pay its way.
+
+- **Write the blockquote as the answer.** If an agent reads only one sentence, that sentence should say what you are, who it's for and the single most important fact. Leave out adjectives like "powerful" or "next-generation". They cost tokens and say nothing.
+- **Make the link notes informative.** `[Pricing](/pricing): three plans, from $9/month, annual discount` lets an agent answer a pricing question without following the link. `[Pricing](/pricing)` alone doesn't.
+- **Curate; don't dump.** The file is a map, not a sitemap. Link the 10 to 40 pages that answer the questions people actually ask. Your sitemap.xml already lists everything else.
+- **Use `## Optional` for depth.** Changelogs, archives and secondary guides go there, so an agent with a tight budget can skip them cleanly.
+- **Use absolute URLs.** An agent may read the file out of context, with no base URL to resolve a relative link against.
+- **Keep it true.** A file that lists a page that 404s, or a price you changed last quarter, is worse than no file. Generate it from your real data where you can.
+
+You'll also see `llms-full.txt` files that inline the full text of every page. That's a popular community convention, but it isn't part of the specification. Treat it as optional.
+
+<AuditCta />
+
+## Where to put it
+
+The file lives at **`/llms.txt`** on the site root, like `/robots.txt`. The specification also allows one under a subpath, such as `/docs/llms.txt`, covering the URLs beneath it. Whichever you use, check that:
+
+- It returns **HTTP 200** with a text content type (`text/markdown` or `text/plain`, with `charset=utf-8`).
+- It isn't behind a login, a bot challenge or a JavaScript redirect.
+- Your robots.txt doesn't disallow it.
+
+The August 2026 revision of the specification adds discovery through standard link relations: `rel="describedby"` pointing to the llms.txt that covers a page, and `rel="alternate" type="text/markdown"` pointing to a page's Markdown version. You can send them as HTTP headers:
+
+```http
+Link: </llms.txt>; rel="describedby", </pricing.md>; rel="alternate"; type="text/markdown"
+```
+
+## Example: Next.js (App Router)
+
+The robust approach is a route handler that **builds the file from the same data your pages use**. That way it can't drift out of date. It's how Crawlable's own [/llms.txt](/llms.txt) is produced.
+
+```ts
+// app/llms.txt/route.ts
+import { getAllDocs } from '@/lib/docs';
+
+export const dynamic = 'force-static'; // built once, served from the CDN
+
+const ORIGIN = 'https://acme.example';
+
+export function GET() {
+  const docs = getAllDocs();
+  const lines = [
+    '# Acme Analytics',
+    '',
+    '> Acme Analytics is a privacy-first web analytics tool for small businesses.',
+    '',
+    '## Docs',
+    '',
+    ...docs.map((doc) => `- [${doc.title}](${ORIGIN}/docs/${doc.slug}): ${doc.summary}`),
+    '',
+  ];
+
+  return new Response(lines.join('\n'), {
+    headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
+  });
+}
+```
+
+To add the `describedby` header site-wide, put it in `next.config.js`:
+
+```js
+// next.config.js
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [{ key: 'Link', value: '</llms.txt>; rel="describedby"' }],
+      },
+    ];
+  },
+};
+```
+
+If your content is hand-maintained, a plain file at `public/llms.txt` works too. Next.js serves anything in `public/` from the root, in both the App Router and the Pages Router.
+
+## Example: static sites and other frameworks
+
+On every static site generator, the file goes in the folder that's copied verbatim to the site root:
+
+| Tool | Put the file at |
+| --- | --- |
+| Astro, Vite, Next.js | `public/llms.txt` |
+| Hugo | `static/llms.txt` |
+| Jekyll | `llms.txt` in the project root |
+| Eleventy | the project root, plus a passthrough copy rule in your config |
+| WordPress | the web root, beside `wp-config.php`, or via an SEO plugin that generates it |
+
+For a fully static site, a small build script that reads your content folder and writes `llms.txt` before deploying gives you the same no-drift guarantee as the Next.js route.
+
+## Check that it works
+
+Fetch it the way an agent would:
+
+```bash
+curl -sS -D - https://yoursite.com/llms.txt -o /dev/null
+```
+
+Check for `200` and a text content type. Then read the body as if you knew nothing about your company. Could you answer "what is this, who is it for, and how much does it cost" from the first ten lines? If not, rewrite the blockquote.
+
+Crawlable's free scan fetches your llms.txt alongside your robots.txt and page HTML, and the paid Fix Kit generates one from your real pages.

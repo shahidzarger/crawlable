@@ -1,6 +1,7 @@
 import { PLATFORMS } from '@/content/platforms';
 import { AI_CRAWLERS } from '@/lib/audit/crawlers';
 import { FAQS } from '@/content/faq';
+import { getPostSummaries } from '@/lib/blog/posts';
 import { SITE_URL } from '@/lib/site-url';
 
 export const dynamic = 'force-static';
@@ -38,6 +39,13 @@ export function GET(): Response {
     ...AI_CRAWLERS.map(
       (crawler) =>
         `- [${crawler.token}](${SITE_URL}/ai-crawlers/${crawler.token.toLowerCase()}): ${crawler.operator}. ${crawler.note}`,
+    ),
+    '',
+    '## Guides',
+    '',
+    `- [Blog](${SITE_URL}/blog): practical guides to AI search visibility.`,
+    ...getPostSummaries().map(
+      (post) => `- [${post.title}](${SITE_URL}/blog/${post.slug}): ${post.description}`,
     ),
     '',
     '## Key facts',

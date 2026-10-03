@@ -1,0 +1,88 @@
+---
+title: "Google SEO vs. AI Search Optimization: Key Differences Every Founder Must Know"
+description: "How AI answer engines choose sources differently from Google, where backlinks still matter, how citations replace rankings, and how to measure AI referral traffic."
+date: 2026-10-03
+author: Crawlable
+tags: [geo, ai-search, analytics, technical-seo]
+---
+
+If you've invested in SEO, the obvious question about AI search is whether it's a new discipline or a rebrand. The honest answer is both. Much of what wins on Google still matters, because answer engines start from a search index. But the step that decides whether you're **cited** works differently, the crawlers that read you are different, and the way you measure success has to change.
+
+This guide sets out the differences that should change what a founder prioritizes, and the ones that shouldn't.
+
+## The short version
+
+| | Google Search | AI answer engines |
+| --- | --- | --- |
+| What the user sees | A ranked list of links, increasingly with an AI Overview on top | One written answer citing a handful of sources |
+| What competes | Whole pages | Passages within pages |
+| Who reads your page | Googlebot, which renders JavaScript | Mostly crawlers that read raw HTML only |
+| Main lever | Relevance plus authority (links, reputation) | Being retrieved, then having the clearest, most specific passage |
+| Success metric | Rankings, impressions, clicks | Citations, mentions, AI referral visits |
+| Measurement | Search Console | Referrers and UTMs, server logs, prompt sampling |
+
+## Retrieval vs. citation: where authority still counts
+
+Answer engines don't search the whole web from scratch for every question. They rewrite the question into several searches and **retrieve candidates from an index**. OpenAI says ChatGPT search ["typically rewrites your query into one or more targeted queries"](https://help.openai.com/en/articles/9237897-chatgpt-search) and works with search providers, while also running its own crawler, OAI-SearchBot. Perplexity runs its own index. Google's AI Overviews and AI Mode use Google's index, with what Google calls [query fan-out](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide).
+
+The implication is simple. **If you're invisible to search indexes, you're mostly invisible to answer engines.** Backlinks, reputation and topical authority still decide what makes the candidate list. Anyone telling you SEO no longer matters is wrong.
+
+Citation is a different step. Once a dozen candidate pages are retrieved, a language model reads excerpts and decides which to use. The research behind the term GEO found that this step can override the search ranking. In the [GEO paper (KDD 2024)](https://arxiv.org/abs/2311.09735), adding cited sources to a page that ranked **fifth** in search raised its share of the generated answer by 115%. The top-ranked page, on average, **lost** 30% of its share. Because generative engines work from page content, the authors argue, "backlink building should not disadvantage small creators" the way it does in classic search.
+
+So the two levers stack, they don't compete. Authority gets you **into the room**. The quality and specificity of your passage gets you **quoted**.
+
+## Backlinks vs. contextual relevance
+
+Classic ranking leans on signals **about** a page, chiefly who links to it. Selection in an answer engine leans more on what is **in** the passage. Modern retrieval matches meaning, not just exact phrases: the question and candidate passages are compared as numerical representations of their meaning, often called embeddings or vectors. A passage that directly and specifically answers the sub-question is a closer match than a generally authoritative page that covers it in passing.
+
+The operators don't publish their ranking formulas, so be wary of anyone claiming precise weights. The research does point in a consistent direction:
+
+- **Specificity wins.** Adding statistics, quotations and sources raised visibility in the GEO experiments. Making text sound more authoritative without adding substance didn't.
+- **Repetition loses.** Keyword stuffing scored *below* the unoptimized baseline, both in the benchmark and when tested on Perplexity.
+- **Clarity about entities helps.** A sentence like "X is a Y that does Z for W" can be extracted and reused intact. Marketing abstractions can't.
+
+## Snippets became citations
+
+On Google, a featured snippet showed one passage from one page. An AI answer is a set of snippets from several pages, blended into prose with links attached. The skills carry over directly: answer-first paragraphs, descriptive headings, short definitions, tables for comparisons.
+
+For Google's own AI features, Google says there are ["no additional requirements to appear in AI Overviews or AI Mode,"](https://developers.google.com/search/docs/appearance/ai-features) and the same snippet controls apply: `nosnippet`, `data-nosnippet`, `max-snippet` and `noindex`. Use those carefully. A `max-snippet` limit that once protected your content from being shown in full also limits what Google's AI features can use.
+
+<AuditCta />
+
+## The technical gap Google hides
+
+Here's the difference most likely to cost a founder visibility without anyone noticing. Googlebot renders JavaScript; most AI crawlers don't. Across Vercel's network, [Vercel and MERJ found](https://vercel.com/blog/the-rise-of-the-ai-crawler) that crawlers from OpenAI, Anthropic, Perplexity, Meta and ByteDance fetch JavaScript files but never execute them. Of the <CrawlerCount kind="total" /> AI user agents Crawlable tracks, <CrawlerCount kind="non-rendering" /> read raw HTML only.
+
+A client-rendered marketing site can rank on page one of Google while serving those crawlers an empty `div`. Search Console won't flag it, because Google sees the rendered page. [Why AI search engines can't read client-side rendered sites](/blog/why-ai-search-engines-cant-read-client-side-rendered-sites) shows how to check.
+
+Access works differently too. AI companies run separate crawlers for training and for answers, so a robots.txt written to "block AI" often blocks the answer engines as well. See [how to configure robots.txt for AI crawlers](/blog/robots-txt-for-ai-crawlers).
+
+## Measuring AI referral traffic
+
+Your existing dashboards undercount AI search, partly by design. Here's how to see it.
+
+**1. Segment AI referrers in analytics.** ChatGPT [adds `utm_source=chatgpt.com` to its referral links](https://help.openai.com/en/articles/12627856-publishers-and-developers-faq), so those visits are attributable. Other assistants send ordinary referrers. In GA4, create a custom channel group with a rule on session source, matching a regular expression like:
+
+```text
+chatgpt\.com|perplexity\.ai|claude\.ai|gemini\.google\.com|copilot\.microsoft\.com
+```
+
+Place the channel **above** "Referral" so these visits aren't absorbed into it.
+
+**2. Expect part of it to show as Direct.** Clicks from desktop and mobile apps, and links people copy out of an answer, often arrive without a referrer. A rise in direct traffic to deep pages, such as a specific guide or pricing, at the same time as AI referrals rise is usually the same effect.
+
+**3. Know what Search Console can't tell you.** Google states that traffic from its AI features is included in the overall Search Console performance report under the "Web" search type, with no separate breakdown. You can't isolate AI Overview clicks there.
+
+**4. Watch your server logs for the fetchers.** Requests from **OAI-SearchBot**, **ChatGPT-User**, **Claude-User** and **Perplexity-User** are leading indicators. A user-action fetch means someone asked an assistant about your page right then. Verify the source IPs before trusting the user agent; anyone can claim to be a bot.
+
+**5. Sample the answers directly.** Keep a fixed list of 20 to 50 questions your customers actually ask. Check every month whether, and how, each assistant cites you. It's manual, but it's the only measure of the outcome itself rather than a proxy.
+
+## What a founder should do this quarter
+
+1. **Keep doing good SEO.** It decides whether you're retrieved, and Google's AI features run on it entirely.
+2. **Fix rendering first.** Make sure your key pages deliver their content in the initial HTML. Nothing else matters for non-Google engines until this is true.
+3. **Audit your robots.txt and CDN settings** so answer-engine crawlers get in, whatever you decide about training.
+4. **Rewrite your most important pages answer-first**, with specific numbers, named sources and clear statements of what you do.
+5. **Add AI referrers as a channel** and start the monthly answer sample, so you have a baseline before you change anything else.
+
+For the bigger picture of how answer engines choose sources, start with [What is Generative Engine Optimization?](/blog/what-is-generative-engine-optimization).

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { PLATFORMS } from '@/content/platforms';
 import { AI_CRAWLERS } from '@/lib/audit/crawlers';
+import { getPostSummaries } from '@/lib/blog/posts';
 import { SITE_URL } from '@/lib/site-url';
 
 /**
@@ -30,6 +31,7 @@ const STATIC_ROUTES: readonly StaticRoute[] = [
   // Hub pages for the two programmatic sets below.
   { path: '/platforms', changeFrequency: 'weekly', priority: 0.8 },
   { path: '/ai-crawlers', changeFrequency: 'weekly', priority: 0.8 },
+  { path: '/blog', changeFrequency: 'weekly', priority: 0.8 },
 
   { path: '/contact', changeFrequency: 'monthly', priority: 0.8 },
 
@@ -79,5 +81,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  return [...staticRoutes, ...platformRoutes, ...crawlerRoutes];
+  /*
+   * Blog posts carry their real last-modified date (frontmatter `updated`,
+   * else `date`) instead of the build time. A lastmod that changes on every
+   * deploy tells crawlers every post was just edited, which is how a sitemap
+   * teaches them to ignore its lastmod values altogether.
+   *
+   * A post whose canonical points elsewhere (a cross-post) is left out: a
+   * sitemap should list only URLs that are their own canonical.
+   */
+  const postRoutes = getPostSummaries()
+    .filter((post) => !post.canonical || post.canonical === `/blog/${post.slug}`)
+    .map((post) => ({
+      url: `${SITE_URL}/blog/${post.slug}`,
+      lastModified: new Date(`${post.lastModified}T00:00:00Z`),
+      changeFrequency: 'monthly' as const,
+      priority: 0.7,
+    }));
+
+  return [...staticRoutes, ...platformRoutes, ...crawlerRoutes, ...postRoutes];
 }

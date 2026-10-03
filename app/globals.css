@@ -276,6 +276,118 @@
     overflow-x: auto;
   }
 
+  /*
+   * Article typography for /blog.
+   *
+   * Hand-written rather than @tailwindcss/typography so every colour is one
+   * of the AA-checked tokens above and nothing new needs a contrast audit.
+   * Elements inside a `.not-prose` component (CTA, tables, notes) are left to
+   * that component's own classes.
+   */
+  .prose-blog {
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    color: var(--ink-primary);
+  }
+  .prose-blog :where(p, ul, ol, blockquote, pre, table):not(:where(.not-prose, .not-prose *)) {
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+  }
+  .prose-blog :where(h2):not(:where(.not-prose, .not-prose *)) {
+    margin-top: 2.4em;
+    margin-bottom: 0.6em;
+    font-size: 1.6rem;
+    line-height: 1.25;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    scroll-margin-top: 5rem;
+  }
+  .prose-blog :where(h3):not(:where(.not-prose, .not-prose *)) {
+    margin-top: 1.9em;
+    margin-bottom: 0.5em;
+    font-size: 1.2rem;
+    line-height: 1.35;
+    font-weight: 600;
+    scroll-margin-top: 5rem;
+  }
+  .prose-blog :where(ul):not(:where(.not-prose, .not-prose *)) {
+    list-style: disc;
+    padding-left: 1.4em;
+  }
+  .prose-blog :where(ol):not(:where(.not-prose, .not-prose *)) {
+    list-style: decimal;
+    padding-left: 1.4em;
+  }
+  .prose-blog :where(li):not(:where(.not-prose, .not-prose *)) {
+    margin-top: 0.4em;
+    padding-left: 0.2em;
+  }
+  .prose-blog :where(li > p):not(:where(.not-prose, .not-prose *)) {
+    margin-top: 0.4em;
+    margin-bottom: 0.4em;
+  }
+  .prose-blog :where(a):not(:where(.not-prose, .not-prose *)) {
+    color: var(--ink-primary);
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 3px;
+  }
+  .prose-blog :where(a):not(:where(.not-prose, .not-prose *)):hover {
+    text-decoration-thickness: 2.5px;
+  }
+  .prose-blog :where(strong):not(:where(.not-prose, .not-prose *)) {
+    font-weight: 600;
+  }
+  .prose-blog :where(blockquote):not(:where(.not-prose, .not-prose *)) {
+    border-left: 3px solid var(--border-strong);
+    padding-left: 1em;
+    color: var(--ink-secondary);
+  }
+  .prose-blog :where(hr):not(:where(.not-prose, .not-prose *)) {
+    margin: 2.5em 0;
+    border-top: 1px solid var(--border);
+  }
+  .prose-blog :where(:not(pre) > code):not(:where(.not-prose, .not-prose *)) {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.875em;
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.1em 0.35em;
+    overflow-wrap: anywhere;
+  }
+  .prose-blog :where(pre):not(:where(.not-prose, .not-prose *)) {
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8125rem;
+    line-height: 1.65;
+  }
+  .prose-blog :where(table):not(:where(.not-prose, .not-prose *)) {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+  }
+  .prose-blog :where(th, td):not(:where(.not-prose, .not-prose *)) {
+    border-bottom: 1px solid var(--border);
+    padding: 0.6em 0.8em;
+    text-align: left;
+    vertical-align: top;
+  }
+  .prose-blog :where(th):not(:where(.not-prose, .not-prose *)) {
+    font-weight: 600;
+    color: var(--ink-secondary);
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
   .grid-backdrop {
     background-image:
       linear-gradient(var(--grid) 1px, transparent 1px),

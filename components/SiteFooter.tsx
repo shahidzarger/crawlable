@@ -60,6 +60,11 @@ export function SiteFooter() {
                   FAQ
                 </Link>
               </li>
+              <li>
+                <Link href="/blog" className="ink-secondary hover:text-[var(--ink-primary)]">
+                  Blog
+                </Link>
+              </li>
             </ul>
           </div>
 

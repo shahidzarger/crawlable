@@ -1,0 +1,104 @@
+---
+title: "Why AI Search Engines Can’t Read Client-Side Rendered (CSR) Sites"
+description: "Most AI crawlers fetch raw HTML and never run your JavaScript. Here's what they actually see on a client-rendered site, how to test it, and how to fix it."
+date: 2026-10-03
+author: Crawlable
+tags: [javascript, ai-crawlers, technical-seo, geo]
+---
+
+If your site renders its content in the browser, as a React, Vue or Angular single-page app does, most AI search crawlers see an **empty page**. Not a slow page or a partial one. They see an HTML shell with a `div` and a stack of script tags, because they download your JavaScript without running it.
+
+This is the most common reason a site ranks well on Google and is still absent from ChatGPT, Claude and Perplexity answers. This guide explains why it happens, shows how to see your site the way those crawlers do, and covers the fixes that work.
+
+## What a non-rendering crawler receives
+
+Here's the complete initial HTML response from a typical client-side rendered app:
+
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Acme — Analytics for small teams</title>
+    <script type="module" src="/assets/index-4f9a1c.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+```
+
+In a browser, the script runs, fetches data, and fills `#root` with your headline, product copy, pricing and FAQ. A crawler that doesn't execute JavaScript stops at the HTML. As far as it's concerned, the page has a title and no content. Nothing to extract, nothing to cite.
+
+## Two kinds of crawler: rendering vs raw HTML
+
+Crawlers fall into two camps.
+
+**Rendering crawlers** load the page in a headless browser, run the JavaScript, wait for the content, and read the result. Googlebot works this way. Google confirms that it ["is able to process content within JavaScript as long as it isn't blocked."](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide) Rendering is expensive: every page needs a browser instance, CPU time and a wait for network requests to settle.
+
+**Raw-HTML fetchers** make one HTTP request and parse whatever comes back. It's fast and cheap, and it's how almost every AI crawler works. A December 2024 analysis of crawler traffic across Vercel's network by [Vercel and MERJ](https://vercel.com/blog/the-rise-of-the-ai-crawler) found that OpenAI's crawlers (GPTBot, OAI-SearchBot and ChatGPT-User) don't render JavaScript. Neither do Anthropic's ClaudeBot or the bots from Perplexity, Meta and ByteDance. The crawlers did **download** JavaScript files, 11.5% of ChatGPT's fetches and 23.8% of Claude's, but never executed them. The exceptions were Google's Gemini, which uses Google's rendering infrastructure, and Apple's Applebot.
+
+Crawlable's registry reflects the same split. Of the <CrawlerCount kind="total" /> AI user agents it tracks, only <CrawlerCount kind="rendering" /> render JavaScript: the control tokens tied to Google's and Apple's rendering infrastructure. The other <CrawlerCount kind="non-rendering" /> read raw HTML only.
+
+There's a practical reason the split is likely to last. A user-action fetcher like ChatGPT-User or Claude-User retrieves your page **while a person is waiting for an answer**. Spinning up a browser and waiting for your app to hydrate would add seconds to every response. One HTTP request is the only design that fits that latency budget.
+
+## "But Google renders JavaScript, so I'm fine"
+
+For Google Search, largely yes. That's exactly what makes the problem invisible. Every tool you normally use to check your site renders JavaScript first: your browser, Google's URL Inspection tool, your analytics, most SEO crawlers. So you have never actually seen your site the way GPTBot or PerplexityBot sees it.
+
+Google itself steers developers away from depending on client-side rendering. It describes dynamic rendering, serving bots a pre-rendered copy, as ["a workaround and not a recommended solution,"](https://developers.google.com/search/docs/crawling-indexing/javascript/dynamic-rendering) and recommends server-side rendering, static rendering, or server rendering with hydration.
+
+<AuditCta />
+
+## Token truncation and page weight
+
+Even when your content **is** in the HTML, how much of it reaches the model depends on what surrounds it.
+
+Crawlers don't read unlimited bytes. Googlebot documents its limit: it ["crawls the first 2MB of a supported file type."](https://developers.google.com/search/docs/crawling-indexing/googlebot) AI operators don't publish equivalent figures for their fetchers, so don't assume they're generous. After fetching, an answer engine turns the page into text and selects passages to fit a finite context window. Anything that inflates the page without adding prose works against you:
+
+- **Hydration payloads.** Server-rendered React frameworks often embed the page's data a second time as serialized JSON in script tags so the client can hydrate. That's harmless for rendering, but it can make the HTML several times larger than the visible text.
+- **Inline SVG and CSS.** A few icon sprites and a critical-CSS block can push your first paragraph deep into the document.
+- **Repeated chrome.** Mega-menus, footers with hundreds of links, and cookie banners rendered into the HTML all compete with your content during text extraction.
+
+You can't control a crawler's budget, but you can control the ratio. Put the main content early in the document, inside `main` and `article` elements, and keep boilerplate lean.
+
+## How to evaluate your site before hydration
+
+You want to see the page exactly as a non-rendering crawler receives it. Four ways, from quickest to most thorough:
+
+**1. Disable JavaScript in your browser.** In Chrome DevTools, open the Command Menu (Ctrl+Shift+P, or Cmd+Shift+P on a Mac), type "Disable JavaScript", and reload. Whatever is still on screen is roughly what a raw-HTML crawler can read.
+
+**2. View the source, not the DOM.** "View page source" (Ctrl+U) shows the original HTML response. The Elements panel shows the DOM *after* JavaScript ran, which is exactly what you **don't** want.
+
+**3. Fetch it like a bot.** Request the page with a crawler user agent and count the words in the response:
+
+```bash
+curl -sS -A "Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)" \
+  https://yoursite.com/ \
+  | sed -e 's/<script[^>]*>.*<\/script>//g' -e 's/<[^>]*>/ /g' \
+  | wc -w
+```
+
+The pattern is rough, but a result near zero on a page you know has a thousand words is unambiguous. Also check that the response is the real page and not a bot challenge. Some CDNs and firewalls block AI user agents by default.
+
+**4. Check what matters, not just whether text exists.** Confirm the raw HTML contains:
+
+- the main heading and the opening paragraph
+- prices, plan names and other facts you want quoted
+- internal links as real `a href` elements, not click handlers. A crawler can't follow a `button` that calls `router.push()`.
+- the canonical tag, title and meta description, since some apps inject these with JavaScript too
+- structured data, if you use it, in the initial HTML
+
+Crawlable automates this. It fetches each page the way a non-rendering crawler does, measures the words, headings and links that survive, and flags pages served as an empty shell that waits for JavaScript.
+
+## How to fix it
+
+Work from the least to the most disruptive change:
+
+1. **Pre-render your marketing pages.** Landing, pricing, docs and blog pages rarely need to be rendered per request. Static generation at build time, offered by almost every modern framework, puts the full content in the HTML for free.
+2. **Server-side render the rest.** Next.js, Nuxt, SvelteKit, Remix, Angular SSR and Astro all render on the server and hydrate in the browser, so crawlers and users both get complete HTML.
+3. **Keep the content out of effects.** In an SSR app, data fetched inside `useEffect` (or its equivalent) still loads only on the client. Move it to the server data layer for any content you want read.
+4. **Use pre-rendering services only as a bridge.** Serving bots a pre-rendered copy works, but it's the "workaround" Google warns about. It adds another system to keep in sync, and it depends on detecting user agents correctly.
+
+There are framework-specific guides for [Next.js](/platforms/nextjs), [React](/platforms/react), [Vue and Nuxt](/platforms/vue-nuxt) and [Angular](/platforms/angular).
+
+Rendering is the step everything else depends on. Your robots.txt, schema and [llms.txt](/blog/how-to-create-llms-txt) can be perfect. If the words aren't in the HTML, there's nothing for an answer engine to cite.

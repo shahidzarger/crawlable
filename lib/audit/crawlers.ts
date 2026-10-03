@@ -113,7 +113,9 @@ export const AI_CRAWLERS: readonly AiCrawler[] = [
     purpose: 'training',
     rendersJavaScript: true,
     blockingCostsVisibility: false,
-    note: 'Controls use of your content for Gemini training. Does not affect Google Search ranking.',
+    // Per Google's crawler docs: a control token, not a crawler, covering Gemini
+    // training AND grounding in Gemini Apps / Vertex AI — not Search or AI Overviews.
+    note: 'Controls use of your content for Gemini training and for grounding answers in Gemini Apps and Vertex AI. Does not affect Google Search or AI Overviews.',
   },
   {
     token: 'Applebot-Extended',

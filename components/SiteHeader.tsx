@@ -30,6 +30,12 @@ export function SiteHeader() {
             Platforms
           </Link>
           <Link
+            href="/blog"
+            className="hidden rounded-lg px-3 py-1.5 ink-secondary transition-colors hover:text-[var(--ink-primary)] sm:block"
+          >
+            Blog
+          </Link>
+          <Link
             href="/#pricing"
             className="rounded-lg px-3 py-1.5 ink-secondary transition-colors hover:text-[var(--ink-primary)]"
           >
