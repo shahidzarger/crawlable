@@ -156,17 +156,8 @@
   }
 
   body {
-    /*
-     * The engineering grid from the brand assets: 1px #F1F5F9 lines every
-     * 32px, across the whole canvas. At 1.07:1 against white it reads as
-     * texture, never as content, and cards sit on it as opaque white.
-     */
+    /* Solid canvas. The engineering grid is confined to the home hero (.grid-backdrop). */
     background-color: var(--surface);
-    background-image:
-      linear-gradient(var(--grid) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-    background-size: 32px 32px;
-    background-position: -1px -1px;
     color: var(--ink-primary);
     font-family: var(--font-sans), Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial,
       sans-serif;
@@ -583,7 +574,7 @@
     letter-spacing: 0.04em;
   }
 
-  /* Same 32px grid as the canvas; kept for sections that set their own fill. */
+  /* The brand's 32px engineering grid. Used only behind the home-page hero. */
   .grid-backdrop {
     background-image:
       linear-gradient(var(--grid) 1px, transparent 1px),

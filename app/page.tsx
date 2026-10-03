@@ -48,6 +48,7 @@ export default function HomePage() {
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b">
+        <div aria-hidden className="grid-backdrop absolute inset-0" />
         <div className="relative mx-auto max-w-6xl px-4 py-16 sm:py-24">
           {/*
             min-w-0 on both columns is load-bearing: a grid item defaults to
