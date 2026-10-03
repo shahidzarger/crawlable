@@ -290,8 +290,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* What you get */}
-      <section className="mx-auto max-w-6xl px-4 py-20">
+      {/* What you get — wider than the text sections, so five cards get room. */}
+      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
         <h2 className="text-3xl font-extrabold tracking-[-0.03em] sm:text-4xl">
           The Fix Kit
         </h2>
@@ -301,10 +301,12 @@ export default function HomePage() {
           in. FIXES.md says where each one belongs.
         </p>
         {/*
-          The five-card deck from the Fix Kit brand asset (gallery-2): one row
-          on wide screens, three then two columns as the width drops.
+          The five-card deck from the Fix Kit brand asset (gallery-2). Five
+          across only from xl (1280px), where max-w-7xl gives each card about
+          230px; below that 3, then 2, then 1 column, so a card is never
+          squeezed into a narrow pillar.
         */}
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="mt-10 grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
           <Deliverable
             file="robots.txt"
             body="Retrieval crawlers allowed explicitly, training crawlers listed separately so blocking them stays a licensing decision rather than an accident. Your existing wildcard Disallow rules are carried over, with a Sitemap directive appended."
@@ -386,21 +388,33 @@ function Card({ step, title, body }: { step: string; title: string; body: string
 
 function Deliverable({ file, body }: { file: string; body: string }) {
   /*
-   * Styled after the Fix Kit asset's file cards: emerald rule along the top,
-   * the file name in bold mono with a document outline top-right, and the
-   * explanation in a pale inset tray below — the tray stretches so every
-   * card in a row ends at the same height.
+   * The file card from the Fix Kit asset: white card, #E2E8F0 border with a
+   * 4px #15803D rule along the top, file name in bold mono beside the
+   * document outline, and the description in the pale inner tray that fills
+   * the rest of the card. Colours are the theme tokens (identical to those
+   * hexes in the light theme) so the card still works in dark mode.
    */
   return (
-    <div className="kit-card flex flex-col p-4">
-      <div className="flex items-start justify-between gap-3 px-1 pt-2">
-        <code className="font-mono text-[17px] font-bold leading-tight" style={{ color: 'var(--ink-primary)' }}>
+    <div
+      className="flex h-full flex-col justify-between gap-4 rounded-2xl border border-t-4 p-4 sm:p-5"
+      style={{
+        background: 'var(--surface-raised)',
+        borderColor: 'var(--border)',
+        borderTopColor: 'var(--accent)',
+        boxShadow: '4px 4px 0 0 var(--shadow)',
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <code className="font-mono text-sm font-bold leading-snug" style={{ color: 'var(--ink-primary)' }}>
           {file}
         </code>
         <FileGlyph />
       </div>
-      <div className="kit-tray mt-5 flex-1 p-4">
-        <p className="text-sm leading-relaxed ink-secondary">{body}</p>
+      <div
+        className="flex flex-1 flex-col justify-center rounded-xl border p-3.5"
+        style={{ background: 'var(--surface-sunken)', borderColor: 'var(--border)' }}
+      >
+        <p className="text-xs leading-relaxed ink-secondary">{body}</p>
       </div>
     </div>
   );
@@ -409,7 +423,7 @@ function Deliverable({ file, body }: { file: string; body: string }) {
 /** The document outline from the Fix Kit asset: a page with a folded corner. */
 function FileGlyph() {
   return (
-    <svg aria-hidden focusable="false" viewBox="179 21 27 31" width="24" height="28" className="shrink-0">
+    <svg aria-hidden focusable="false" viewBox="179 21 27 31" width="20" height="23" className="shrink-0">
       <path d="M180.5 22.5h16l8 8v20h-24z" fill="var(--surface-raised)" stroke="var(--ink-primary)" strokeWidth="1.5" />
       <path d="M196.5 22.5v8h8" fill="none" stroke="var(--ink-primary)" strokeWidth="1.5" />
     </svg>

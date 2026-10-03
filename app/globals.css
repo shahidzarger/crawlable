@@ -199,26 +199,6 @@
   }
 
   /*
-   * Fix Kit deck cards (home page), after the gallery-2 asset: white card,
-   * #E2E8F0 border, 10px radius, the 4px emerald rule inset along the top,
-   * and the brand's hard 6px offset shadow. .kit-tray is the inner panel.
-   */
-  .kit-card {
-    background: var(--surface-raised);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    box-shadow:
-      inset 0 4px 0 0 var(--accent),
-      6px 6px 0 0 var(--shadow);
-  }
-  .kit-tray {
-    background: var(--surface-sunken);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-  }
-
-
-  /*
    * Status badge, as in the assets: 6px radius, emerald hairline, the pale
    * emerald fill, a small square marker and monospace label.
    */
