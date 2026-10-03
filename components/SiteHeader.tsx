@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { BrandMark } from './BrandMark';
+import { MobileMenu } from './MobileMenu';
+import { NAV_LINKS } from './nav-links';
 
 export function SiteHeader() {
   return (
@@ -7,47 +9,31 @@ export function SiteHeader() {
       className="sticky top-0 z-40 border-b backdrop-blur"
       style={{ background: 'color-mix(in srgb, var(--surface) 88%, transparent)' }}
     >
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+      {/* relative: the mobile menu panel is positioned against this bar. */}
+      <div className="relative mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2 text-[17px] font-extrabold tracking-[-0.02em]">
           <BrandMark />
           Crawlable
         </Link>
 
-        <nav className="flex items-center gap-1 text-sm">
-          <Link
-            href="/ai-crawlers"
-            className="hidden rounded-lg px-3 py-1.5 ink-secondary transition-colors hover:text-[var(--ink-primary)] sm:block"
-          >
-            AI crawlers
-          </Link>
-          <Link
-            href="/platforms"
-            className="hidden rounded-lg px-3 py-1.5 ink-secondary transition-colors hover:text-[var(--ink-primary)] sm:block"
-          >
-            Platforms
-          </Link>
-          <Link
-            href="/blog"
-            className="hidden rounded-lg px-3 py-1.5 ink-secondary transition-colors hover:text-[var(--ink-primary)] sm:block"
-          >
-            Blog
-          </Link>
-          <Link
-            href="/#pricing"
-            className="rounded-lg px-3 py-1.5 ink-secondary transition-colors hover:text-[var(--ink-primary)]"
-          >
-            Pricing
-          </Link>
-          <Link
-            href="/contact"
-            className="hidden rounded-lg px-3 py-1.5 ink-secondary transition-colors hover:text-[var(--ink-primary)] sm:block"
-          >
-            Contact
-          </Link>
+        {/* md and up: every link inline. */}
+        <nav aria-label="Main" className="hidden items-center gap-1 whitespace-nowrap text-sm md:flex">
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="rounded-lg px-3 py-1.5 ink-secondary transition-colors hover:text-[var(--ink-primary)]"
+            >
+              {link.label}
+            </Link>
+          ))}
           <Link href="/dashboard" className="btn-ghost ml-1 px-3 py-1.5 text-sm">
             Dashboard
           </Link>
         </nav>
+
+        {/* Below md: one button that opens the full list. */}
+        <MobileMenu />
       </div>
     </header>
   );
